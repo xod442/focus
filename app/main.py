@@ -12,10 +12,15 @@ from . import backup, config
 from .db import SessionLocal, init_db
 from .deps import get_current_user
 from .models import User, STAFF_ROLES
-from .routes import account, action_items, admin, auth, dashboard, logs, messages, metrics, tasks
+from .routes import (
+    account, action_items, admin, auth, dashboard, logs, messages, metrics, sso, tasks,
+)
 
-# Paths a user with a pending password change may still reach.
-_PW_CHANGE_ALLOWED = {"/account/password", "/logout", "/login"}
+# Paths a user with a pending password change may still reach. /sso/holo is
+# included so an incoming hand-off from HOLO can always establish a fresh
+# session, regardless of whatever session (if any) was previously active —
+# the new session is then subject to the same enforcement on its own next request.
+_PW_CHANGE_ALLOWED = {"/account/password", "/logout", "/login", "/sso/holo"}
 
 
 def _prefix_location(response):
@@ -81,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(action_items.router)
     app.include_router(messages.router)
     app.include_router(metrics.router)
+    app.include_router(sso.router)
 
     # --- Admin-only, self-hosted API docs (Swagger) --------------------------
     _root = config.ROOT_PATH.rstrip("/")

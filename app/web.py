@@ -8,3 +8,8 @@ templates = Jinja2Templates(directory=str(config.BASE_DIR / "app" / "templates")
 # Root path (subpath behind the HPE edge, e.g. "/holo"); templates prefix all
 # internal URLs with {{ rp }} so links/assets resolve under the edge.
 templates.env.globals["rp"] = config.ROOT_PATH
+
+# Expose the config module so templates can check live settings (e.g. whether
+# the HOLO SSO hand-off is configured) rather than a value snapshotted at
+# import time — this also makes it straightforward to test via monkeypatch.
+templates.env.globals["config"] = config

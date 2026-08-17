@@ -28,8 +28,8 @@ def _valid_invite(db: Session, token: str) -> Invite | None:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_form(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"request": request})
+def login_form(request: Request, error: str = ""):
+    return templates.TemplateResponse(request, "login.html", {"request": request, "error": error})
 
 
 @router.post("/login")

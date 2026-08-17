@@ -41,3 +41,15 @@ BACKUP_KEEP = int(os.getenv("FOCUS_BACKUP_KEEP", "30"))
 # How many weeks without an update before an open item is flagged "stale" on
 # the executive metrics page.
 STALE_WEEKS = int(os.getenv("FOCUS_STALE_WEEKS", "2"))
+
+# ── Single sign-on hand-off to HOLO (same host, separate app/DB) ────────────
+# Clicking the "HOLO" button generates a short-lived, signed token (the
+# user's own email, nothing else) and redirects to HOLO's SSO-accepting
+# route. HOLO independently verifies the signature (shared secret, set
+# identically in both apps' env — NOT the same as either app's own
+# SECRET_KEY) and logs the person in if a matching HOLO account exists.
+# Empty secret = feature disabled (button hidden).
+SSO_SHARED_SECRET = os.getenv("SSO_SHARED_SECRET", "").strip()
+SSO_SALT = "focus-holo-sso"
+SSO_TOKEN_MAX_AGE = 60  # seconds — the link is only valid for a brief window
+HOLO_BASE_URL = os.getenv("HOLO_BASE_URL", "http://localhost:9093").rstrip("/")

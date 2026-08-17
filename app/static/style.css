@@ -114,6 +114,17 @@ input:disabled { background: rgba(255, 255, 255, .04); color: var(--muted); }
 .navlink { color: #cbd5e1; text-decoration: none; font-size: .9rem; }
 .navlink:hover { color: #fff; }
 
+/* ---- HOLO SSO launcher (external-app shortcut in the nav) ---- */
+.holo-link {
+  border: 1px solid var(--hpe-green);
+  color: var(--hpe-green-dark);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-weight: 700;
+  font-size: .8rem;
+}
+.holo-link:hover { background: rgba(1, 169, 130, .16); color: var(--hpe-green-dark); }
+
 /* ---- page head ---- */
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .page-head h1 { margin: 0; }

@@ -49,6 +49,25 @@ can't silently delete a message) permanently removes it from just that
 person's own queue — it isn't a shared/persistent inbox, and clearing your
 copy doesn't affect the other person's copy of a reply.
 
+## HOLO single sign-on
+
+If `SSO_SHARED_SECRET` is set, a **HOLO** button appears in the nav (opens in
+a new tab). Clicking it generates a short-lived (60s), signed token
+containing just the current user's email, and redirects to HOLO's
+`/sso/focus` route — HOLO independently verifies the signature and logs the
+person in if a HOLO account with that same email exists, with no separate
+login step. No account auto-creation: if there's no matching HOLO account,
+they land on HOLO's login page with a clear message instead.
+
+This requires `SSO_SHARED_SECRET` to be set to the **exact same value** in
+both apps' `.env` files — it's a secret shared between the two apps, not
+either app's own `FOCUS_SECRET_KEY`/`HOLO_SECRET_KEY` (which sign session
+cookies, not this hand-off). `HOLO_BASE_URL` must be a URL your browser can
+actually reach (not necessarily what the FOCUS container itself would use) —
+in production this is likely the edge-facing hostname on HOLO's port/path,
+not `localhost`. If `SSO_SHARED_SECRET` is empty, the button is hidden and
+`/go/holo` just bounces back to the FOCUS dashboard.
+
 ## Executive snapshot
 
 `/metrics` gives leadership a one-page view:
@@ -159,6 +178,8 @@ unmodified.
 | `FOCUS_STALE_WEEKS` | `2` | Weeks with no update before an open item is flagged "stale" on the metrics page. |
 | `FOCUS_PORT` | `9094` | Host port (host networking). |
 | `FOCUS_DNS1` / `FOCUS_DNS2` | `8.8.8.8` / `8.8.4.4` | DNS resolvers for the container (needed for the SMTP forwarder in host-networking mode). |
+| `SSO_SHARED_SECRET` | *(empty — SSO disabled)* | Enables the HOLO SSO hand-off; must match HOLO's own `SSO_SHARED_SECRET` exactly. |
+| `HOLO_BASE_URL` | `http://localhost:9093` | Browser-reachable URL for HOLO — override for production (edge hostname/path, not the container's own view of "localhost"). |
 
 ## Stack
 

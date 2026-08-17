@@ -17,6 +17,10 @@
     <nav class="nav">
       <a class="navlink" href="{{ rp }}/">Dashboard</a>
       <a class="navlink" href="{{ rp }}/metrics">Metrics</a>
+      {% if config.SSO_SHARED_SECRET %}
+      <a class="navlink holo-link" href="{{ rp }}/go/holo" target="_blank" rel="noopener"
+         title="Open HOLO in a new tab, already signed in">HOLO</a>
+      {% endif %}
       {% if user.role in ['admin', 'manager'] %}
       <a class="navlink" href="{{ rp }}/admin">Admin</a>
       <a class="navlink" href="{{ rp }}/admin/log">System Log</a>
