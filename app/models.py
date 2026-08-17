@@ -147,3 +147,30 @@ class AuditLog(Base):
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_label: Mapped[str] = mapped_column(String, default="")
     details: Mapped[str] = mapped_column(Text, default="")
+
+
+MESSAGE_BODY_MAX_LEN = 250
+
+
+class Message(Base):
+    """A short, in-app ping from one user to another about a task/action item.
+
+    Each user's dashboard shows only messages where they are the recipient.
+    "Clearing" a message removes it from the DB entirely — it's a queue of
+    quick notifications, not a persistent thread/inbox."""
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    body: Mapped[str] = mapped_column(String(MESSAGE_BODY_MAX_LEN))
+    # What the message was sent about — kept as a denormalized snapshot so the
+    # message stays meaningful even if the task/action item is later edited or
+    # deleted (related_id may no longer resolve to a live record).
+    related_kind: Mapped[str] = mapped_column(String, default="")   # "task" | "action_item" | ""
+    related_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    related_label: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    sender: Mapped["User"] = relationship("User", foreign_keys=[sender_id])
+    recipient: Mapped["User"] = relationship("User", foreign_keys=[recipient_id])

@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app import main as main_module  # noqa: E402
+from app import notifier  # noqa: E402
 from app.db import Base, get_db  # noqa: E402
 from app.main import app as fastapi_app  # noqa: E402
 from app.models import MailConfig, ROLE_ADMIN, ROLE_MANAGER, ROLE_MEMBER, User  # noqa: E402
@@ -112,3 +113,48 @@ def login(client, user: User, password: str = DEFAULT_PASSWORD):
         data={"email": user.email, "password": password},
         follow_redirects=False,
     )
+
+
+class FakeSMTP:
+    """Stand-in for smtplib.SMTP: records every message 'sent' through it, or
+    raises OSError if `.connect_error` is set (simulating an unreachable relay).
+    Shared by tests exercising app.notifier / the email-a-record routes."""
+
+    sent: list = []
+    connect_error = False
+
+    def __init__(self, host, port, timeout=None):
+        if FakeSMTP.connect_error:
+            raise OSError("connection refused")
+        self.host, self.port = host, port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def send_message(self, msg):
+        FakeSMTP.sent.append(msg)
+
+
+@pytest.fixture()
+def fake_smtp(monkeypatch):
+    """Monkeypatch smtplib.SMTP (as used by app.notifier) with FakeSMTP."""
+    FakeSMTP.sent = []
+    FakeSMTP.connect_error = False
+    monkeypatch.setattr(notifier.smtplib, "SMTP", FakeSMTP)
+    return FakeSMTP
+
+
+def configure_mail(db_session, **overrides) -> MailConfig:
+    """Set up a working mail-forwarder config for tests that send email."""
+    cfg = db_session.get(MailConfig, 1)
+    cfg.host = "smtp.test.local"
+    cfg.mail_from = "focus@test.local"
+    cfg.default_to = "default@test.local"
+    for key, value in overrides.items():
+        setattr(cfg, key, value)
+    db_session.add(cfg)
+    db_session.commit()
+    return cfg

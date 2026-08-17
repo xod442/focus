@@ -25,6 +25,13 @@ ROOT_PATH = os.getenv("FOCUS_ROOT_PATH", "")
 DEFAULT_ADMIN_USERNAME = os.getenv("FOCUS_ADMIN_USERNAME", "admin").strip().lower()
 DEFAULT_ADMIN_PASSWORD = os.getenv("FOCUS_ADMIN_PASSWORD", "admin")
 
+# Predefined manager (team-lead role: can edit/reassign anyone's tasks & action
+# items, plus the full admin console). Seeded independently of the admin — it
+# fills in even on a database that already has users but no manager yet — and
+# must change password on first login.
+DEFAULT_MANAGER_USERNAME = os.getenv("FOCUS_MANAGER_USERNAME", "manager").strip().lower()
+DEFAULT_MANAGER_PASSWORD = os.getenv("FOCUS_MANAGER_PASSWORD", "manager")
+
 USING_EPHEMERAL_SECRET = os.getenv("FOCUS_SECRET_KEY") is None
 
 # Backups: written to the volume (default alongside the DB) with retention.

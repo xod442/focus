@@ -12,7 +12,7 @@ from . import backup, config
 from .db import SessionLocal, init_db
 from .deps import get_current_user
 from .models import User, STAFF_ROLES
-from .routes import account, action_items, admin, auth, dashboard, logs, metrics, tasks
+from .routes import account, action_items, admin, auth, dashboard, logs, messages, metrics, tasks
 
 # Paths a user with a pending password change may still reach.
 _PW_CHANGE_ALLOWED = {"/account/password", "/logout", "/login"}
@@ -79,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(tasks.router)
     app.include_router(action_items.router)
+    app.include_router(messages.router)
     app.include_router(metrics.router)
 
     # --- Admin-only, self-hosted API docs (Swagger) --------------------------

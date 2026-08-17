@@ -13,6 +13,42 @@
   </div>
 </div>
 
+{% if msg %}<div class="alert {{ 'success' if ok else 'error' }}">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h2>My Messages <span class="muted">— quick pings sent to you; clear once read</span></h2>
+  {% if my_messages %}
+  <ul class="msg-list">
+    {% for m in my_messages %}
+    <li class="msg-row">
+      <div class="msg-body">
+        <div class="msg-text">{{ m.body }}</div>
+        <div class="muted msg-meta">
+          from {{ m.sender.email }} · {{ m.created_at.strftime('%Y-%m-%d %H:%M') }}
+          {% if m.related_label %}
+            {% if m.related_kind == 'task' %}· <a class="doc-link" href="{{ rp }}/tasks/{{ m.related_id }}/edit">{{ m.related_label }}</a>
+            {% elif m.related_kind == 'action_item' %}· <a class="doc-link" href="{{ rp }}/action-items/{{ m.related_id }}/edit">{{ m.related_label }}</a>
+            {% else %}· {{ m.related_label }}{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="msg-actions">
+        <button type="button" class="icon-btn" title="Reply to {{ m.sender.email }}"
+                onclick="openReplyModal(this)"
+                data-id="{{ m.id }}" data-to="{{ m.sender.email }}">&#8617;</button>
+        <form method="post" action="{{ rp }}/messages/{{ m.id }}/clear"
+              onsubmit="return confirm('Clear this message? This cannot be undone.');">
+          <button type="submit" class="icon-btn" title="Clear this message">&times;</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No messages right now.</p>
+  {% endif %}
+</section>
+
 <form method="get" action="{{ rp }}/" class="filter-bar">
   <label class="filter-label" for="status_filter">Status</label>
   <select id="status_filter" name="status_filter" onchange="this.form.submit()">
@@ -44,7 +80,7 @@
       {% set t = row.task %}
       <tr>
         <td>
-          <a href="{{ rp }}/tasks/{{ t.id }}/edit">{{ t.title }}</a>
+          <a class="record-link" href="{{ rp }}/tasks/{{ t.id }}/edit">{{ t.title }}</a>
           {% if row.stale %}<span class="pill amber" title="No update in {{ stale_weeks if stale_weeks else 2 }}+ weeks">stale</span>{% endif %}
         </td>
         <td>{{ t.owner.email }}</td>
@@ -62,6 +98,13 @@
             </button>
           </form>
           {% endif %}
+          <button type="button" class="icon-btn" title="Email {{ t.owner.email }} about this task"
+                  onclick="openEmailModal(this)"
+                  data-kind="tasks" data-id="{{ t.id }}" data-to="{{ t.owner.email }}"
+                  data-label="Task #{{ t.id }}: {{ t.title }}">&#9993;</button>
+          <button type="button" class="icon-btn" title="Message {{ t.owner.email }} about this task"
+                  onclick="openMessageModal(this)"
+                  data-kind="tasks" data-id="{{ t.id }}" data-to="{{ t.owner.email }}">&#128172;</button>
         </td>
       </tr>
     {% endfor %}
@@ -82,7 +125,7 @@
       {% set i = row.item %}
       <tr>
         <td>
-          <a href="{{ rp }}/action-items/{{ i.id }}/edit">{{ i.description }}</a>
+          <a class="record-link" href="{{ rp }}/action-items/{{ i.id }}/edit">{{ i.description }}</a>
           {% if row.stale %}<span class="pill amber" title="No update in 2+ weeks">stale</span>{% endif %}
         </td>
         <td>{{ i.requested_by.email }}</td>
@@ -101,6 +144,13 @@
             </button>
           </form>
           {% endif %}
+          <button type="button" class="icon-btn" title="Email {{ i.assignee.email }} about this action item"
+                  onclick="openEmailModal(this)"
+                  data-kind="action-items" data-id="{{ i.id }}" data-to="{{ i.assignee.email }}"
+                  data-label="Action Item #{{ i.id }}: {{ i.description }}">&#9993;</button>
+          <button type="button" class="icon-btn" title="Message {{ i.assignee.email }} about this action item"
+                  onclick="openMessageModal(this)"
+                  data-kind="action-items" data-id="{{ i.id }}" data-to="{{ i.assignee.email }}">&#128172;</button>
         </td>
       </tr>
     {% endfor %}
@@ -111,4 +161,93 @@
   {% endif %}
 </section>
 
+<dialog id="emailModal">
+  <form method="post" id="emailForm">
+    <h2 id="emailModalTitle" style="margin-bottom:2px;">Email about this item</h2>
+    <p class="hint" id="emailModalSubtitle" style="margin:0 0 14px;"></p>
+    <label>To
+      <input type="email" name="to" id="emailTo" required>
+    </label>
+    <label>Subject
+      <input type="text" id="emailSubjectPreview" disabled>
+      <span class="hint">Automatically set from the record — not editable.</span>
+    </label>
+    <label>Note
+      <textarea name="note" id="emailNote" rows="4" placeholder="Add context for the recipient..." autofocus></textarea>
+    </label>
+    <div class="backup-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-sm ghost" onclick="document.getElementById('emailModal').close()">Cancel</button>
+      <button type="submit" class="btn btn-sm">Send email</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="messageModal">
+  <form method="post" id="messageForm">
+    <h2 style="margin-bottom:2px;">Send a quick message</h2>
+    <p class="hint" id="messageModalSubtitle" style="margin:0 0 14px;"></p>
+    <label>Message <span class="muted">(max {{ message_max_len }} characters)</span>
+      <textarea name="body" id="messageBody" rows="3" maxlength="{{ message_max_len }}"
+                placeholder="Short note..." required autofocus></textarea>
+    </label>
+    <div class="backup-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-sm ghost" onclick="document.getElementById('messageModal').close()">Cancel</button>
+      <button type="submit" class="btn btn-sm">Send message</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="replyModal">
+  <form method="post" id="replyForm">
+    <h2 style="margin-bottom:2px;">Reply</h2>
+    <p class="hint" id="replyModalSubtitle" style="margin:0 0 14px;"></p>
+    <label>Message <span class="muted">(max {{ message_max_len }} characters)</span>
+      <textarea name="body" id="replyBody" rows="3" maxlength="{{ message_max_len }}"
+                placeholder="Your reply..." required autofocus></textarea>
+    </label>
+    <div class="backup-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-sm ghost" onclick="document.getElementById('replyModal').close()">Cancel</button>
+      <button type="submit" class="btn btn-sm">Send reply</button>
+    </div>
+  </form>
+</dialog>
+
+{% endblock %}
+{% block scripts %}
+<script>
+  function openEmailModal(btn) {
+    const kind = btn.dataset.kind;
+    const id = btn.dataset.id;
+    const to = btn.dataset.to;
+    const label = btn.dataset.label;
+    const form = document.getElementById('emailForm');
+    form.action = "{{ rp }}/" + kind + "/" + id + "/email";
+    document.getElementById('emailTo').value = to;
+    document.getElementById('emailSubjectPreview').value = label;
+    document.getElementById('emailModalSubtitle').textContent = "To: " + to;
+    document.getElementById('emailNote').value = '';
+    document.getElementById('emailModal').showModal();
+  }
+
+  function openMessageModal(btn) {
+    const kind = btn.dataset.kind;
+    const id = btn.dataset.id;
+    const to = btn.dataset.to;
+    const form = document.getElementById('messageForm');
+    form.action = "{{ rp }}/" + kind + "/" + id + "/message";
+    document.getElementById('messageModalSubtitle').textContent = "To: " + to;
+    document.getElementById('messageBody').value = '';
+    document.getElementById('messageModal').showModal();
+  }
+
+  function openReplyModal(btn) {
+    const id = btn.dataset.id;
+    const to = btn.dataset.to;
+    const form = document.getElementById('replyForm');
+    form.action = "{{ rp }}/messages/" + id + "/reply";
+    document.getElementById('replyModalSubtitle').textContent = "To: " + to;
+    document.getElementById('replyBody').value = '';
+    document.getElementById('replyModal').showModal();
+  }
+</script>
 {% endblock %}

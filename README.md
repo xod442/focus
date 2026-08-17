@@ -24,6 +24,31 @@ laser-focused view during the call. Each row has a quick "mark complete /
 reopen" button plus a link to a full edit page (title/description,
 reassignment for managers & admins, and the notes log).
 
+Each row also has a small ✉ icon — click it to email the record's owner (task)
+or assignee (action item) directly from the dashboard. A modal opens with the
+recipient pre-filled (editable, but restricted to a known active user's
+address), a subject automatically set from the record's type and number (e.g.
+"Task #12: ..." / "Action Item #5: ..."), and a free-text note field. Sending
+uses the same SMTP forwarder configured in Admin → Mail forwarder.
+
+## Messages
+
+Every user has their own **My Messages** queue at the top of the dashboard —
+only messages addressed to them are shown. Each task/action item row has a
+💬 icon (next to ✉) for sending a short, in-app ping (up to 250 characters)
+to that record's owner/assignee — no email involved, and the recipient is
+always locked to that record's owner/assignee (not user-selectable). Each
+message shows the sender, timestamp, and a link back to the task/action item
+it was about.
+
+Each message has two actions: **↩ Reply** sends a new message straight back
+to whoever sent the original (carrying the same task/action item context),
+so a conversation can go back and forth between two people until either side
+clears it. **× Clear** (with a confirmation prompt, so an accidental click
+can't silently delete a message) permanently removes it from just that
+person's own queue — it isn't a shared/persistent inbox, and clearing your
+copy doesn't affect the other person's copy of a reply.
+
 ## Executive snapshot
 
 `/metrics` gives leadership a one-page view:
@@ -84,9 +109,9 @@ export FOCUS_DB_PATH=./focus.db
 uvicorn app.main:app --reload --port 9094
 ```
 
-Sign in with the seeded default admin (`admin` / `admin`) — you'll be forced
-to change the password on first login. Create additional admins directly in
-the DB with:
+Sign in with the seeded default admin (`admin` / `admin`) or manager
+(`manager` / `manager`) — you'll be forced to change the password on first
+login. Create additional admins directly in the DB with:
 
 ```bash
 python -m scripts.create_admin --email you@hpe.com --password 'secret123'
@@ -130,6 +155,7 @@ unmodified.
 | `FOCUS_COOKIE_NAME` | `focus_session` | Session cookie name. |
 | `FOCUS_INVITE_TTL_DAYS` | `7` | How long an invite link stays valid. |
 | `FOCUS_ADMIN_USERNAME` / `FOCUS_ADMIN_PASSWORD` | `admin` / `admin` | Seeded default admin (fresh DB only; must change password on first login). |
+| `FOCUS_MANAGER_USERNAME` / `FOCUS_MANAGER_PASSWORD` | `manager` / `manager` | Seeded default manager (fills in even if the DB already has other users, as long as no manager exists yet; must change password on first login). |
 | `FOCUS_STALE_WEEKS` | `2` | Weeks with no update before an open item is flagged "stale" on the metrics page. |
 | `FOCUS_PORT` | `9094` | Host port (host networking). |
 | `FOCUS_DNS1` / `FOCUS_DNS2` | `8.8.8.8` / `8.8.4.4` | DNS resolvers for the container (needed for the SMTP forwarder in host-networking mode). |

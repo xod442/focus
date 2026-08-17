@@ -8,7 +8,9 @@ from starlette import status as http_status
 from .. import permissions as perm
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import ActionItem, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, User
+from ..models import (
+    ActionItem, MESSAGE_BODY_MAX_LEN, Message, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, User,
+)
 from ..web import templates
 
 router = APIRouter()
@@ -23,6 +25,8 @@ def dashboard(
     request: Request,
     status_filter: str = "open",
     person: str = "",
+    ok: int = 1,
+    msg: str = "",
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -79,6 +83,14 @@ def dashboard(
     open_task_count = db.query(Task).filter(Task.status == STATUS_IN_PROGRESS).count()
     open_item_count = db.query(ActionItem).filter(ActionItem.status == STATUS_IN_PROGRESS).count()
 
+    # Each user's own message queue — only messages addressed to them.
+    my_messages = (
+        db.query(Message)
+        .filter(Message.recipient_id == user.id)
+        .order_by(Message.created_at.desc())
+        .all()
+    )
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -92,5 +104,9 @@ def dashboard(
             "person_sel": person,
             "open_task_count": open_task_count,
             "open_item_count": open_item_count,
+            "my_messages": my_messages,
+            "message_max_len": MESSAGE_BODY_MAX_LEN,
+            "ok": bool(ok),
+            "msg": msg,
         },
     )

@@ -4,12 +4,16 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from starlette import status
 
-from .. import audit
+from .. import audit, notifier
 from .. import permissions as perm
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import STAFF_ROLES, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, TaskNote, User
+from ..models import (
+    MESSAGE_BODY_MAX_LEN, Message, STAFF_ROLES, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task,
+    TaskNote, User,
+)
 from datetime import datetime
+from urllib.parse import quote
 from ..web import templates
 
 router = APIRouter()
@@ -152,6 +156,97 @@ def add_task_note(task_id: int, body: str = Form(...), db: Session = Depends(get
         audit.log(db, user, "task.note", target_type="task", target_id=task.id,
                   target_label=task.title)
     return RedirectResponse(f"/tasks/{task.id}/edit", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/tasks/{task_id}/email")
+def email_task(
+    task_id: int,
+    request: Request,
+    to: str = Form(...),
+    note: str = Form(""),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if user is None:
+        return _login()
+    task = db.get(Task, task_id)
+    referer = request.headers.get("referer", "/")
+    if task is None:
+        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+
+    to = to.strip().lower()
+    # Only allow sending to a known, active user's address — never an arbitrary input.
+    recipient = db.query(User).filter(User.email == to, User.is_active.is_(True)).first()
+    if not to or recipient is None:
+        return RedirectResponse(
+            f"{referer}{'&' if '?' in referer else '?'}ok=0&msg={quote('Pick a valid recipient.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    subject = f"FOCUS Task #{task.id}: {task.title}"
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/tasks/{task.id}/edit"
+    lines = [
+        f"{user.email} sent you a note about this task in FOCUS:",
+        "",
+        f"  Task:    #{task.id} — {task.title}",
+        f"  Owner:   {task.owner.email}",
+        f"  Status:  {'completed' if task.status == STATUS_COMPLETED else 'in progress'}",
+        "",
+        note.strip() or "(no note added)",
+        "",
+        f"Open in FOCUS: {link}",
+    ]
+    ok, message = notifier.send(db, recipient.email, subject, "\n".join(lines))
+    audit.log(db, user, "task.email", target_type="task", target_id=task.id,
+              target_label=task.title, details=f"to={recipient.email} sent={ok}")
+
+    msg = f"Email sent to {recipient.email}." if ok else message
+    return RedirectResponse(
+        f"{referer}{'&' if '?' in referer else '?'}ok={1 if ok else 0}&msg={quote(msg)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/tasks/{task_id}/message")
+def message_task(
+    task_id: int,
+    request: Request,
+    body: str = Form(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if user is None:
+        return _login()
+    task = db.get(Task, task_id)
+    referer = request.headers.get("referer", "/")
+    if task is None:
+        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+
+    body = body.strip()[:MESSAGE_BODY_MAX_LEN]
+    if not body:
+        return RedirectResponse(
+            f"{referer}{'&' if '?' in referer else '?'}ok=0&msg={quote('Message cannot be empty.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    msg_row = Message(
+        sender_id=user.id,
+        recipient_id=task.owner_id,
+        body=body,
+        related_kind="task",
+        related_id=task.id,
+        related_label=f"Task #{task.id}: {task.title}",
+    )
+    db.add(msg_row)
+    db.commit()
+    audit.log(db, user, "message.send", target_type="task", target_id=task.id,
+              target_label=task.title, details=f"to={task.owner.email}")
+
+    return RedirectResponse(
+        f"{referer}{'&' if '?' in referer else '?'}ok=1&msg={quote('Message sent to ' + task.owner.email + '.')}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/tasks/{task_id}/delete")

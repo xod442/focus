@@ -491,3 +491,41 @@ body.warp-mode .mm2-task-form button.mm2-task:hover { outline: 2px solid var(--h
 .usage3d-name.is-you { color: var(--hpe-green-dark); font-weight: 700; }
 .usage3d-empty { color: var(--muted); }
 
+/* ---- Dashboard record links (task title / action item description) ---- */
+.record-link { color: var(--hpe-green-dark); font-weight: 600; text-decoration: none; }
+.record-link:hover { color: var(--hpe-green); text-decoration: underline; }
+
+/* ---- Email-this-record icon + shared modal (dashboard) ---- */
+.icon-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: .95rem; line-height: 1; color: var(--muted);
+}
+.icon-btn:hover { color: var(--hpe-green-dark); }
+
+dialog#emailModal, dialog#messageModal, dialog#replyModal {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px 24px;
+  width: 92%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+}
+dialog#emailModal::backdrop, dialog#messageModal::backdrop, dialog#replyModal::backdrop { background: rgba(0, 0, 0, .6); }
+dialog#emailModal form, dialog#messageModal form, dialog#replyModal form { margin: 0; }
+
+/* ---- Per-user message queue (dashboard) ---- */
+.msg-list { list-style: none; margin: 0; padding: 0; }
+.msg-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.msg-row:last-child { border-bottom: none; }
+.msg-text { font-size: .92rem; color: var(--text); }
+.msg-meta { font-size: .76rem; margin-top: 3px; }
+.msg-row .icon-btn { font-size: 1.2rem; line-height: 1; padding: 0 4px; }
+.msg-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.msg-actions form { margin: 0; }
+
+

@@ -29,6 +29,7 @@ def init_db() -> None:
     Base.metadata.create_all(engine)
     _ensure_columns()
     seed_default_admin()
+    seed_default_manager()
     seed_mail_config()
 
 
@@ -63,6 +64,32 @@ def seed_default_admin() -> None:
                 email=config.DEFAULT_ADMIN_USERNAME,
                 password_hash=hash_password(config.DEFAULT_ADMIN_PASSWORD),
                 role=ROLE_ADMIN,
+                must_change_password=True,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def seed_default_manager() -> None:
+    """Ensure a predefined manager exists; must change password on first login.
+
+    Seeded independently of seed_default_admin (checked by role, not total user
+    count), so it fills in even on a database that already has users but no
+    manager yet."""
+    from .models import User, ROLE_MANAGER
+    from .security import hash_password
+
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.role == ROLE_MANAGER).count() > 0:
+            return
+        db.add(
+            User(
+                email=config.DEFAULT_MANAGER_USERNAME,
+                password_hash=hash_password(config.DEFAULT_MANAGER_PASSWORD),
+                role=ROLE_MANAGER,
                 must_change_password=True,
             )
         )

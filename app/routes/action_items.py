@@ -1,17 +1,19 @@
 """Action Items: something one person needs another person (or themselves) to do."""
 from datetime import datetime
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from starlette import status
 
-from .. import audit
+from .. import audit, notifier
 from .. import permissions as perm
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import (
-    ActionItem, ActionItemNote, STATUS_COMPLETED, STATUS_IN_PROGRESS, User,
+    ActionItem, ActionItemNote, MESSAGE_BODY_MAX_LEN, Message, STATUS_COMPLETED,
+    STATUS_IN_PROGRESS, User,
 )
 from ..web import templates
 
@@ -149,6 +151,100 @@ def add_item_note(item_id: int, body: str = Form(...), db: Session = Depends(get
         audit.log(db, user, "action_item.note", target_type="action_item", target_id=item.id,
                   target_label=item.description[:80])
     return RedirectResponse(f"/action-items/{item.id}/edit", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/action-items/{item_id}/email")
+def email_item(
+    item_id: int,
+    request: Request,
+    to: str = Form(...),
+    note: str = Form(""),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if user is None:
+        return _login()
+    item = db.get(ActionItem, item_id)
+    referer = request.headers.get("referer", "/")
+    if item is None:
+        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+
+    to = to.strip().lower()
+    # Only allow sending to a known, active user's address — never an arbitrary input.
+    recipient = db.query(User).filter(User.email == to, User.is_active.is_(True)).first()
+    if not to or recipient is None:
+        return RedirectResponse(
+            f"{referer}{'&' if '?' in referer else '?'}ok=0&msg={quote('Pick a valid recipient.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    short_desc = item.description if len(item.description) <= 60 else item.description[:57] + "..."
+    subject = f"FOCUS Action Item #{item.id}: {short_desc}"
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/action-items/{item.id}/edit"
+    lines = [
+        f"{user.email} sent you a note about this action item in FOCUS:",
+        "",
+        f"  Action Item: #{item.id} — {item.description}",
+        f"  Requested by: {item.requested_by.email}",
+        f"  Assigned to:  {item.assignee.email}",
+        f"  Status:       {'completed' if item.status == STATUS_COMPLETED else 'in progress'}",
+        "",
+        note.strip() or "(no note added)",
+        "",
+        f"Open in FOCUS: {link}",
+    ]
+    ok, message = notifier.send(db, recipient.email, subject, "\n".join(lines))
+    audit.log(db, user, "action_item.email", target_type="action_item", target_id=item.id,
+              target_label=item.description[:80], details=f"to={recipient.email} sent={ok}")
+
+    msg = f"Email sent to {recipient.email}." if ok else message
+    return RedirectResponse(
+        f"{referer}{'&' if '?' in referer else '?'}ok={1 if ok else 0}&msg={quote(msg)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/action-items/{item_id}/message")
+def message_item(
+    item_id: int,
+    request: Request,
+    body: str = Form(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if user is None:
+        return _login()
+    item = db.get(ActionItem, item_id)
+    referer = request.headers.get("referer", "/")
+    if item is None:
+        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+
+    body = body.strip()[:MESSAGE_BODY_MAX_LEN]
+    if not body:
+        return RedirectResponse(
+            f"{referer}{'&' if '?' in referer else '?'}ok=0&msg={quote('Message cannot be empty.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    short_desc = item.description if len(item.description) <= 60 else item.description[:57] + "..."
+    msg_row = Message(
+        sender_id=user.id,
+        recipient_id=item.assignee_id,
+        body=body,
+        related_kind="action_item",
+        related_id=item.id,
+        related_label=f"Action Item #{item.id}: {short_desc}",
+    )
+    db.add(msg_row)
+    db.commit()
+    audit.log(db, user, "message.send", target_type="action_item", target_id=item.id,
+              target_label=item.description[:80], details=f"to={item.assignee.email}")
+
+    return RedirectResponse(
+        f"{referer}{'&' if '?' in referer else '?'}ok=1&msg={quote('Message sent to ' + item.assignee.email + '.')}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/action-items/{item_id}/delete")
