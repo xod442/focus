@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}New Task · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ rp }}/">&larr; Dashboard</a>
+    <h1>New Task</h1>
+  </div>
+</div>
+<section class="card">
+  <form method="post" action="{{ rp }}/tasks">
+    <label>Title
+      <input type="text" name="title" required autofocus placeholder="What are you planning to accomplish?">
+    </label>
+    <label>Description / notes
+      <textarea name="description" rows="4" placeholder="Optional details"></textarea>
+    </label>
+    {% if user.role in ['admin', 'manager'] %}
+    <label>Owner
+      <select name="owner_id">
+        {% for u in all_users %}
+        <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.email }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <button class="btn" type="submit">Create task</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Admin · FOCUS{% endblock %}
+{% block content %}
+<h1>Admin console</h1>
+
+{% if msg %}<div class="alert {{ 'success' if ok else 'error' }}">{{ msg }}</div>{% endif %}
+
+{% if reset_info %}
+<div class="alert success">
+  <strong>Password reset for {{ reset_info.email }}.</strong>
+  Share this temporary password securely — they must change it at next login:
+  <div class="copy-row">
+    <input class="copy-input" value="{{ reset_info.temp }}" readonly onclick="this.select()">
+  </div>
+</div>
+{% endif %}
+
+{% if new_invite_link %}
+<div class="alert success">
+  <strong>Invitation created.</strong> Copy this link and send it, or email it directly:
+  <div class="copy-row">
+    <input class="copy-input" value="{{ new_invite_link }}" readonly onclick="this.select()">
+  </div>
+  {% if new_invite_id %}
+  <form method="post" action="{{ rp }}/admin/invite/{{ new_invite_id }}/email" class="email-invite-form">
+    <button class="btn btn-sm" type="submit">✉ Email this link</button>
+    <span class="hint" style="margin:0;">(sends via the mail forwarder below)</span>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<section class="card">
+  <h2>Invite a user</h2>
+  <form method="post" action="{{ rp }}/admin/invite" class="inline-form">
+    <input type="email" name="email" placeholder="person@hpe.com" required>
+    <select name="role">
+      <option value="member">Member</option>
+      <option value="manager">Manager</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button class="btn" type="submit">Generate link</button>
+  </form>
+  <p class="hint">Links are single-use and expire. Copy/paste them, or use ✉ Email to send via the forwarder.</p>
+</section>
+
+<section class="card">
+  <h2>Mail forwarder</h2>
+  <p class="hint">Unauthenticated SMTP relay — host/IP, port, and addresses only (no login).
+    Used for invitation emails.</p>
+  <form method="post" action="{{ rp }}/admin/mail-config">
+    <div class="grid2">
+      <label>Forwarder host / IP
+        <input type="text" name="host" value="{{ cfg.host }}" placeholder="smtp.hpe.com or 10.0.0.25">
+      </label>
+      <label>Port
+        <input type="number" name="port" value="{{ cfg.port }}" min="1" max="65535">
+      </label>
+      <label>From address
+        <input type="text" name="mail_from" value="{{ cfg.mail_from }}" placeholder="focus@hpe.com">
+      </label>
+      <label>Default / test recipient
+        <input type="text" name="default_to" value="{{ cfg.default_to }}" placeholder="team@hpe.com">
+      </label>
+    </div>
+    <label>App base URL <span class="muted">(for links inside emails, optional)</span>
+      <input type="text" name="app_base_url" value="{{ cfg.app_base_url }}" placeholder="https://theedge.ext.hpe.com/focus">
+    </label>
+    <label class="checkline">
+      <input type="checkbox" name="enabled" {% if cfg and cfg.enabled %}checked{% endif %}>
+      <span>Enabled</span>
+    </label>
+    <button class="btn" type="submit">Save forwarder</button>
+  </form>
+  <form method="post" action="{{ rp }}/admin/mail-test" class="inline-form test-form">
+    <input type="text" name="to_address" placeholder="test@hpe.com (blank = default)">
+    <button class="btn ghost btn-sm" type="submit">Send test email</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Pending invitations</h2>
+  {% if pending %}
+  <table class="tbl">
+    <thead><tr><th>Email</th><th>Role</th><th>Expires</th><th>Link</th><th></th><th></th></tr></thead>
+    <tbody>
+    {% for inv in pending %}
+      <tr>
+        <td>{{ inv.email }}</td>
+        <td>{{ inv.role }}</td>
+        <td>{{ inv.expires_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <input class="copy-input" value="{{ register_base }}{{ inv.token }}"
+                 readonly onclick="this.select()">
+        </td>
+        <td>
+          <form method="post" action="{{ rp }}/admin/invite/{{ inv.id }}/email">
+            <button class="btn-link dark" type="submit" title="Email this link to {{ inv.email }}">✉ email</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ rp }}/admin/invite/{{ inv.id }}/revoke"
+                onsubmit="return confirm('Revoke this invitation?');">
+            <button class="btn-link dark" type="submit">revoke</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No pending invitations.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Users</h2>
+  <table class="tbl">
+    <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.email }}</td>
+        <td>
+          <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/role" class="inline-form" style="gap:6px;">
+            <select name="role" onchange="this.form.submit()">
+              <option value="member" {% if u.role == 'member' %}selected{% endif %}>Member</option>
+              <option value="manager" {% if u.role == 'manager' %}selected{% endif %}>Manager</option>
+              <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+          </form>
+        </td>
+        <td>
+          {% if u.is_active %}<span class="status-badge status-complete">active</span>
+          {% else %}<span class="status-badge status-blocked">disabled</span>{% endif %}
+        </td>
+        <td>{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/reset-password"
+                onsubmit="return confirm('Reset password for {{ u.email }}? They get a temporary password and must change it at next login.');">
+            <button class="btn-link dark" type="submit">reset password</button>
+          </form>
+          {% if u.id != user.id %}
+          <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/toggle">
+            <button class="btn-link dark" type="submit">{{ 'disable' if u.is_active else 'enable' }}</button>
+          </form>
+          <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/delete"
+                onsubmit="return confirm('Permanently delete {{ u.email }}? This cannot be undone.');">
+            <button class="btn-link dark" type="submit">delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>System log</h2>
+  <div class="backup-head">
+    <p class="hint" style="margin:0;">Every state-changing action, by every user &mdash; logins, task &amp; action item changes, and admin actions.</p>
+    <a class="btn btn-sm" href="{{ rp }}/admin/log">View log</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>API documentation</h2>
+  <div class="backup-head">
+    <p class="hint" style="margin:0;">Interactive Swagger UI for the FOCUS API (admin/manager only, self-hosted).</p>
+    <a class="btn btn-sm" href="{{ rp }}/docs" target="_blank" rel="noopener">Open Swagger</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Database backup</h2>
+  <div class="backup-head">
+    <p class="hint" style="margin:0;">
+      Automatic backup runs daily; kept on the server volume.
+      {% if backups %}Latest: <strong>{{ backups[0].when }}</strong>.{% else %}No backups yet.{% endif %}
+    </p>
+    <form method="post" action="{{ rp }}/admin/backup">
+      <button class="btn btn-sm" type="submit">Back up now</button>
+    </form>
+  </div>
+  {% if backups %}
+  <table class="tbl">
+    <thead><tr><th>Backup</th><th>When</th><th>Size</th><th></th></tr></thead>
+    <tbody>
+    {% for b in backups %}
+      <tr>
+        <td>{{ b.name }}</td>
+        <td>{{ b.when }}</td>
+        <td>{{ b.size_kb }} KB</td>
+        <td class="backup-actions">
+          <a class="doc-link" href="{{ rp }}/admin/backup/download/{{ b.name }}">download</a>
+          <form method="post" action="{{ rp }}/admin/restore/{{ b.name }}"
+                onsubmit="return confirm('Restore this backup? It will REPLACE the current database. A safety backup is taken first.');">
+            <button class="btn-link dark" type="submit">restore</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <form method="post" action="{{ rp }}/admin/restore" enctype="multipart/form-data" class="restore-form"
+        onsubmit="return confirm('Restore will REPLACE the current database with the uploaded file. A safety backup is taken first. Continue?');">
+    <label class="restore-label">Restore from a downloaded backup file</label>
+    <div class="restore-row">
+      <input type="file" name="file" accept=".db,application/octet-stream" required>
+      <button class="btn btn-sm ghost danger" type="submit">Restore from file</button>
+    </div>
+    <p class="hint">Must be a FOCUS database file (a safety backup of the current DB is always taken first).</p>
+  </form>
+</section>
+{% endblock %}

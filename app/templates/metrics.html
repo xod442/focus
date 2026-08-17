@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Metrics · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Executive Snapshot</h1>
+    <p class="muted overview-sub">Team throughput, workload, and obstacles at a glance.</p>
+  </div>
+</div>
+
+<section class="card">
+  <h2>At a glance</h2>
+  <div class="grid2">
+    <div>
+      <p class="muted" style="margin:0;">Open tasks</p>
+      <p style="font-size:1.8rem; margin:2px 0; font-weight:800;">{{ open_task_count }}</p>
+    </div>
+    <div>
+      <p class="muted" style="margin:0;">Open action items</p>
+      <p style="font-size:1.8rem; margin:2px 0; font-weight:800;">{{ open_item_count }}</p>
+    </div>
+    <div>
+      <p class="muted" style="margin:0;">Completed tasks (all time)</p>
+      <p style="font-size:1.8rem; margin:2px 0; font-weight:800;">{{ done_task_count }}</p>
+    </div>
+    <div>
+      <p class="muted" style="margin:0;">Completed action items (all time)</p>
+      <p style="font-size:1.8rem; margin:2px 0; font-weight:800;">{{ done_item_count }}</p>
+    </div>
+  </div>
+  {% if stale_task_count or stale_item_count %}
+  <div class="alert error" style="margin-top:16px;">
+    <strong>{{ stale_task_count + stale_item_count }} open item{{ '' if (stale_task_count + stale_item_count) == 1 else 's' }}</strong>
+    ({{ stale_task_count }} task{{ '' if stale_task_count == 1 else 's' }}, {{ stale_item_count }} action item{{ '' if stale_item_count == 1 else 's' }})
+    haven't been touched in {{ stale_weeks }}+ weeks — possible obstacles to raise on the call.
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="usage3d-head">
+    <div>
+      <h2 style="margin-bottom:2px;">Application usage by user</h2>
+      <p class="hint" style="margin:0;">Audit-log activity (logins, task &amp; action item changes) — who's
+        actively using FOCUS, compared to everyone else.</p>
+    </div>
+    <form method="get" action="{{ rp }}/metrics" class="usage3d-days">
+      <label for="usage_days">Window</label>
+      <select id="usage_days" name="usage_days" onchange="this.form.submit()">
+        {% for d in usage_day_choices %}
+        <option value="{{ d }}" {% if usage_days == d %}selected{% endif %}>Last {{ d }} days</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if usage_rows %}
+  <div class="usage3d-chart">
+    {% for row in usage_rows %}
+    <div class="usage3d-col">
+      <div class="usage3d-rank-slot">
+        {% if row.rank == 1 and row.count > 0 %}<span class="usage3d-rank">★ most active</span>{% endif %}
+      </div>
+      <div class="usage3d-bar"
+           style="height:{{ row.height_px }}px; --bar-color:{{ row.color }}; --bar-color-light:{{ row.color_light }}; --bar-color-dark:{{ row.color_dark }};"></div>
+      <div class="usage3d-count">{{ row.count }}</div>
+      <div class="usage3d-name {{ 'is-you' if row.is_you else '' }}">{{ row.email }}{% if row.is_you %} (you){% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="usage3d-empty">No active users yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Workload by person</h2>
+  <p class="hint">Open tasks (by owner) + open action items (by assignee).</p>
+  {% if workload_rows %}
+  <table class="tbl">
+    <thead><tr><th>Person</th><th>Open tasks</th><th>Open action items</th><th>Total</th></tr></thead>
+    <tbody>
+    {% for r in workload_rows %}
+      <tr>
+        <td>{{ r.email }}</td>
+        <td>{{ r.tasks }}</td>
+        <td>{{ r.action_items }}</td>
+        <td><strong>{{ r.total }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Nothing open right now.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Completion trend <span class="muted">— last {{ trend|length }} weeks</span></h2>
+  <div style="display:flex; align-items:flex-end; gap:8px; height:120px;">
+    {% for w in trend %}
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%;">
+      <div style="font-size:.72rem; color:var(--muted);">{{ w.tasks + w.action_items }}</div>
+      <div class="seg completed" style="flex:0 0 auto; width:100%; height:{{ ((w.tasks + w.action_items) / trend_max * 90)|round(0, 'floor')|int }}px; min-height:2px;"></div>
+      <div style="font-size:.68rem; color:var(--muted);">{{ w.week }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="hint" style="margin-top:8px;">Bars show tasks + action items completed each week (Monday-anchored).</p>
+</section>
+
+<section class="card">
+  <h2>Oldest open items <span class="muted">— likely obstacles to discuss</span></h2>
+  {% if oldest %}
+  <table class="tbl">
+    <thead><tr><th>Type</th><th>Item</th><th>Owner / Assignee</th><th>Age</th></tr></thead>
+    <tbody>
+    {% for o in oldest %}
+      <tr>
+        <td><span class="status-badge {{ 'cat-task' if o.kind == 'Task' else 'cat-action_item' }}">{{ o.kind }}</span></td>
+        <td>{{ o.label }}</td>
+        <td>{{ o.owner }}</td>
+        <td>{{ o.age_weeks|round(1) }}w</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Nothing open right now.</p>
+  {% endif %}
+</section>
+{% endblock %}

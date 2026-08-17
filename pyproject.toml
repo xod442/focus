@@ -1,0 +1,19 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # line length — not enforced (long strings/URLs in templates & routes)
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/routes/__init__.py"]

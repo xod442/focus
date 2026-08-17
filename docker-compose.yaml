@@ -1,0 +1,37 @@
+name: focus
+
+services:
+  focus:
+    build: .
+    image: focus
+    # Host networking, as requested — the app binds the host port directly and
+    # uses the host's DNS resolvers/routing (matches the opal/opal-mist/holo
+    # deployment pattern). In host mode "ports:" is ignored.
+    network_mode: host
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${FOCUS_PORT:-9094}"]
+    # Corporate DNS resolvers. In host networking the container still uses its
+    # OWN /etc/resolv.conf, which Docker otherwise fills with public DNS
+    # (8.8.8.8) that can't resolve internal names like an SMTP relay. Set
+    # FOCUS_DNS1/FOCUS_DNS2 in a (gitignored) .env on the prod host.
+    dns:
+      - ${FOCUS_DNS1:-8.8.8.8}
+      - ${FOCUS_DNS2:-8.8.4.4}
+    environment:
+      # Required — a fixed key so sessions survive restarts.
+      - FOCUS_SECRET_KEY=${FOCUS_SECRET_KEY:?set FOCUS_SECRET_KEY in .env}
+      - FOCUS_DB_PATH=/data/focus.db
+      # 1 = cookie only over HTTPS (correct behind an edge). Set 0 for plain-HTTP local.
+      - FOCUS_COOKIE_SECURE=${FOCUS_COOKIE_SECURE:-1}
+      - FOCUS_COOKIE_NAME=${FOCUS_COOKIE_NAME:-focus_session}
+      # Subpath when served behind a reverse proxy, e.g. /focus. Empty = root.
+      - FOCUS_ROOT_PATH=${FOCUS_ROOT_PATH:-}
+      - FOCUS_INVITE_TTL_DAYS=${FOCUS_INVITE_TTL_DAYS:-7}
+      - FOCUS_ADMIN_USERNAME=${FOCUS_ADMIN_USERNAME:-admin}
+      - FOCUS_ADMIN_PASSWORD=${FOCUS_ADMIN_PASSWORD:-admin}
+      - FOCUS_STALE_WEEKS=${FOCUS_STALE_WEEKS:-2}
+    volumes:
+      - focus-data:/data
+    restart: unless-stopped
+
+volumes:
+  focus-data:

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}System Log · FOCUS{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ rp }}/admin">&larr; Admin console</a>
+    <h1>System Log</h1>
+  </div>
+</div>
+<p class="muted overview-sub">Every state-changing action, by every user &mdash; logins, task &amp;
+  action item changes, and admin actions. Newest first.</p>
+
+<form method="get" class="filter-bar">
+  <label class="filter-label" for="user_email">User</label>
+  <select id="user_email" name="user_email" onchange="this.form.submit()">
+    <option value="">All users</option>
+    {% for email in users %}
+    <option value="{{ email }}" {% if user_sel == email %}selected{% endif %}>{{ email }}</option>
+    {% endfor %}
+  </select>
+  <label class="filter-label" for="action">Action</label>
+  <select id="action" name="action" onchange="this.form.submit()">
+    <option value="">All actions</option>
+    {% for a in actions %}
+    <option value="{{ a }}" {% if action_sel == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button class="btn btn-sm" type="submit">Filter</button></noscript>
+  <span class="filter-count">{{ total }} event{{ '' if total == 1 else 's' }}</span>
+  {% if user_sel or action_sel %}<a class="filter-clear" href="{{ rp }}/admin/log">clear</a>{% endif %}
+</form>
+
+{% if rows %}
+<section class="card">
+  <table class="tbl">
+    <thead><tr><th>When</th><th>User</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.ts.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ r.user_email or '—' }}</td>
+        <td><span class="status-badge cat-{{ r.action.split('.')[0] }}">{{ r.action }}</span></td>
+        <td>
+          {% if r.target_type %}<span class="muted">{{ r.target_type }}</span>{% endif %}
+          {% if r.target_label %} {{ r.target_label }}{% endif %}
+          {% if r.target_id %} <span class="muted">#{{ r.target_id }}</span>{% endif %}
+        </td>
+        <td>{{ r.details or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if total_pages > 1 %}
+<div class="pager">
+  {% set qs = ('user_email=' ~ user_sel ~ '&' if user_sel else '') ~ ('action=' ~ action_sel ~ '&' if action_sel else '') %}
+  {% if page > 1 %}
+  <a class="btn btn-sm ghost" href="{{ rp }}/admin/log?{{ qs }}page={{ page - 1 }}">&larr; Newer</a>
+  {% endif %}
+  <span class="muted">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a class="btn btn-sm ghost" href="{{ rp }}/admin/log?{{ qs }}page={{ page + 1 }}">Older &rarr;</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card empty"><p class="muted">No matching log entries.</p></div>
+{% endif %}
+
+{% endblock %}

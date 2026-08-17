@@ -1,0 +1,7 @@
+# Test & lint dependencies, on top of requirements.txt.
+-r requirements.txt
+
+pytest==8.4.2
+pytest-cov==7.0.0
+httpx==0.28.1
+ruff==0.14.4

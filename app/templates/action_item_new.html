@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}New Action Item · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ rp }}/">&larr; Dashboard</a>
+    <h1>New Action Item</h1>
+  </div>
+</div>
+<section class="card">
+  <form method="post" action="{{ rp }}/action-items">
+    <label>What needs to happen?
+      <textarea name="description" rows="3" required autofocus
+                placeholder="e.g. Send the updated pricing sheet to the team"></textarea>
+    </label>
+    <label>Assign to
+      <select name="assignee_id">
+        {% for u in all_users %}
+        <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.email }}{% if u.id == user.id %} (me){% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <p class="hint">Can be assigned to anyone, including yourself.</p>
+    <button class="btn" type="submit">Create action item</button>
+  </form>
+</section>
+{% endblock %}

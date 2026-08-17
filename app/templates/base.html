@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FOCUS{% endblock %}</title>
+  <link rel="stylesheet" href="{{ rp }}/assets/style.css">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-group">
+      <img class="hpe-logo" src="{{ rp }}/assets/hpelogo.png" alt="HPE">
+      <div class="brand">FOC<span>US</span> {% block brand_subtitle %}{% endblock %}</div>
+    </div>
+    {% if user %}
+    <nav class="nav">
+      <a class="navlink" href="{{ rp }}/">Dashboard</a>
+      <a class="navlink" href="{{ rp }}/metrics">Metrics</a>
+      {% if user.role in ['admin', 'manager'] %}
+      <a class="navlink" href="{{ rp }}/admin">Admin</a>
+      <a class="navlink" href="{{ rp }}/admin/log">System Log</a>
+      {% endif %}
+      <span class="who">{{ user.email }} · {{ user.role }}</span>
+      <a class="btn-link" href="{{ rp }}/account/password">Change password</a>
+      <form method="post" action="{{ rp }}/logout" class="logout">
+        <button class="btn-link" type="submit">Log out</button>
+      </form>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

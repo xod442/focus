@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+.env
+data/
+*.key
+.DS_Store
+docker-compose.override.yaml
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

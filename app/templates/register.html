@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Create account · FOCUS{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  {% if invalid %}
+    <h1>Invalid invitation</h1>
+    <p class="muted">This registration link is invalid, expired, or already used.
+      Ask an admin to send you a new one.</p>
+    <a class="btn" href="{{ rp }}/login">Back to sign in</a>
+  {% else %}
+    <h1>Create your account</h1>
+    {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ rp }}/register">
+      <input type="hidden" name="token" value="{{ token }}">
+      <label>Email
+        <input type="email" value="{{ email }}" disabled>
+      </label>
+      <label>Password
+        <input type="password" name="password" required minlength="8" autofocus>
+        <span class="hint">At least 8 characters</span>
+      </label>
+      <button class="btn" type="submit">Create account</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

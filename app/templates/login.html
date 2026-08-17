@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Sign in · FOCUS{% endblock %}
+{% block brand_subtitle %}<small>Follow-ups, Obstacles, Commitments &amp; Updates on Status</small>{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Sign in</h1>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ rp }}/login" autocomplete="off">
+    <label>Email or username
+      <input type="text" name="email" required autofocus autocomplete="off">
+    </label>
+    <label>Password
+      <input type="password" name="password" required autocomplete="new-password"
+             readonly onfocus="this.removeAttribute('readonly')">
+    </label>
+    <button class="btn" type="submit">Sign in</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Never leave the password lingering in the field (incl. back/forward cache).
+  (function () {
+    function clearPassword() {
+      document.querySelectorAll('input[type=password]').forEach(function (el) { el.value = ''; });
+    }
+    window.addEventListener('pageshow', clearPassword);
+    document.addEventListener('DOMContentLoaded', function () {
+      clearPassword();
+      // Catch autofill that fires after load.
+      setTimeout(clearPassword, 200);
+      setTimeout(clearPassword, 600);
+    });
+  })();
+</script>
+{% endblock %}

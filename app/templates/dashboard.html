@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · FOCUS{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Team Dashboard</h1>
+    <p class="muted overview-sub">Everything open across the team, reviewed together on the weekly call.</p>
+  </div>
+  <div class="backup-actions">
+    <a class="btn btn-sm" href="{{ rp }}/tasks/new">+ New Task</a>
+    <a class="btn btn-sm ghost" href="{{ rp }}/action-items/new">+ New Action Item</a>
+  </div>
+</div>
+
+<form method="get" action="{{ rp }}/" class="filter-bar">
+  <label class="filter-label" for="status_filter">Status</label>
+  <select id="status_filter" name="status_filter" onchange="this.form.submit()">
+    <option value="open" {% if status_sel == 'open' %}selected{% endif %}>Open (in progress)</option>
+    <option value="completed" {% if status_sel == 'completed' %}selected{% endif %}>Completed</option>
+    <option value="all" {% if status_sel == 'all' %}selected{% endif %}>All</option>
+  </select>
+  <label class="filter-label" for="person">Person</label>
+  <select id="person" name="person" onchange="this.form.submit()">
+    <option value="" {% if person_sel == '' %}selected{% endif %}>Everyone</option>
+    <option value="me" {% if person_sel == 'me' %}selected{% endif %}>Just me ({{ user.email }})</option>
+    {% for u in all_users %}
+    <option value="{{ u.id }}" {% if person_sel == u.id|string %}selected{% endif %}>{{ u.email }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button class="btn btn-sm" type="submit">Filter</button></noscript>
+  <span class="filter-count">{{ open_task_count }} open task{{ '' if open_task_count == 1 else 's' }} ·
+    {{ open_item_count }} open action item{{ '' if open_item_count == 1 else 's' }}</span>
+  {% if status_sel != 'open' or person_sel %}<a class="filter-clear" href="{{ rp }}/">clear</a>{% endif %}
+</form>
+
+<section class="card">
+  <h2>Tasks <span class="muted">— planned work, stays visible until completed</span></h2>
+  {% if task_rows %}
+  <table class="tbl">
+    <thead><tr><th>Title</th><th>Owner</th><th>Status</th><th>Last update</th><th></th></tr></thead>
+    <tbody>
+    {% for row in task_rows %}
+      {% set t = row.task %}
+      <tr>
+        <td>
+          <a href="{{ rp }}/tasks/{{ t.id }}/edit">{{ t.title }}</a>
+          {% if row.stale %}<span class="pill amber" title="No update in {{ stale_weeks if stale_weeks else 2 }}+ weeks">stale</span>{% endif %}
+        </td>
+        <td>{{ t.owner.email }}</td>
+        <td>
+          {% if t.status == 'completed' %}<span class="status-badge status-complete">completed</span>
+          {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
+        </td>
+        <td>{{ t.updated_at.strftime('%Y-%m-%d') }}</td>
+        <td class="backup-actions">
+          <a class="doc-link" href="{{ rp }}/tasks/{{ t.id }}/edit">edit</a>
+          {% if row.can_edit %}
+          <form method="post" action="{{ rp }}/tasks/{{ t.id }}/status">
+            <button class="btn-link dark" type="submit">
+              {{ 'reopen' if t.status == 'completed' else 'mark complete' }}
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No tasks match this filter.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Action Items <span class="muted">— something you need someone else (or yourself) to do</span></h2>
+  {% if item_rows %}
+  <table class="tbl">
+    <thead><tr><th>Description</th><th>Requested by</th><th>Assignee</th><th>Status</th><th>Last update</th><th></th></tr></thead>
+    <tbody>
+    {% for row in item_rows %}
+      {% set i = row.item %}
+      <tr>
+        <td>
+          <a href="{{ rp }}/action-items/{{ i.id }}/edit">{{ i.description }}</a>
+          {% if row.stale %}<span class="pill amber" title="No update in 2+ weeks">stale</span>{% endif %}
+        </td>
+        <td>{{ i.requested_by.email }}</td>
+        <td>{{ i.assignee.email }}</td>
+        <td>
+          {% if i.status == 'completed' %}<span class="status-badge status-complete">completed</span>
+          {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
+        </td>
+        <td>{{ i.updated_at.strftime('%Y-%m-%d') }}</td>
+        <td class="backup-actions">
+          <a class="doc-link" href="{{ rp }}/action-items/{{ i.id }}/edit">edit</a>
+          {% if row.can_edit %}
+          <form method="post" action="{{ rp }}/action-items/{{ i.id }}/status">
+            <button class="btn-link dark" type="submit">
+              {{ 'reopen' if i.status == 'completed' else 'mark complete' }}
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No action items match this filter.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

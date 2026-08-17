@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Action Item · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ rp }}/">&larr; Dashboard</a>
+    <h1>Action Item</h1>
+  </div>
+  {% if item.status == 'completed' %}<span class="status-badge status-complete">completed</span>
+  {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
+</div>
+
+<section class="card">
+  {% if can_edit %}
+  <form method="post" action="{{ rp }}/action-items/{{ item.id }}">
+    <label>Description
+      <textarea name="description" rows="3" required>{{ item.description }}</textarea>
+    </label>
+    <label>Assigned to
+      <select name="assignee_id">
+        {% for u in all_users %}
+        <option value="{{ u.id }}" {% if u.id == item.assignee_id %}selected{% endif %}>{{ u.email }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Requested by
+      <input type="text" value="{{ item.requested_by.email }}" disabled>
+    </label>
+    <button class="btn" type="submit">Save changes</button>
+  </form>
+  <div class="backup-actions" style="margin-top:14px;">
+    <form method="post" action="{{ rp }}/action-items/{{ item.id }}/status">
+      <button class="btn btn-sm ghost" type="submit">
+        {{ 'Reopen' if item.status == 'completed' else 'Mark complete' }}
+      </button>
+    </form>
+    <form method="post" action="{{ rp }}/action-items/{{ item.id }}/delete"
+          onsubmit="return confirm('Delete this action item? This cannot be undone.');">
+      <button class="btn btn-sm ghost danger" type="submit">Delete</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="muted">
+    Requested by <strong>{{ item.requested_by.email }}</strong>, assigned to <strong>{{ item.assignee.email }}</strong>.
+    Only the requester, the assignee, a manager, or an admin can edit this item.
+  </p>
+  <p>{{ item.description }}</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Notes</h2>
+  <p class="hint">A running log — add a comment each week's team call.</p>
+  <form method="post" action="{{ rp }}/action-items/{{ item.id }}/notes" class="inline-form">
+    <input type="text" name="body" placeholder="Add a note..." required style="flex:1 1 auto;">
+    <button class="btn btn-sm" type="submit">Add</button>
+  </form>
+  {% if item.notes %}
+  <ul class="queue-list" style="margin-top:12px;">
+    {% for n in item.notes %}
+    <li>
+      <div>
+        <div>{{ n.body }}</div>
+        <div class="muted" style="font-size:.78rem;">
+          {{ n.author.email if n.author else 'unknown' }} · {{ n.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No notes yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
