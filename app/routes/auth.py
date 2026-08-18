@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import audit
+from .. import permissions as perm
 from ..db import get_db
 from ..models import User, Invite
 from ..security import hash_password, verify_password
@@ -28,8 +29,12 @@ def _valid_invite(db: Session, token: str) -> Invite | None:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_form(request: Request, error: str = ""):
-    return templates.TemplateResponse(request, "login.html", {"request": request, "error": error})
+def login_form(request: Request, error: str = "", db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"request": request, "error": error, "hall_of_fame": perm.most_active_user(db)},
+    )
 
 
 @router.post("/login")
@@ -47,7 +52,8 @@ def login(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"request": request, "error": "Invalid email or password"},
+            {"request": request, "error": "Invalid email or password",
+             "hall_of_fame": perm.most_active_user(db)},
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     if not user.is_active:
@@ -56,7 +62,8 @@ def login(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"request": request, "error": "This account has been disabled."},
+            {"request": request, "error": "This account has been disabled.",
+             "hall_of_fame": perm.most_active_user(db)},
             status_code=status.HTTP_403_FORBIDDEN,
         )
     request.session["user_id"] = user.id

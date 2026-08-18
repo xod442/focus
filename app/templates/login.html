@@ -16,6 +16,16 @@
     <button class="btn" type="submit">Sign in</button>
   </form>
 </div>
+{% if hall_of_fame %}
+<div class="hof-badge">
+  <span class="hof-trophy">&#127942;</span>
+  <div>
+    <div class="hof-title">Hall of Fame</div>
+    <div class="hof-text"><strong>{{ hall_of_fame.email }}</strong> leads FOCUS usage
+      with {{ hall_of_fame.count }} action{{ '' if hall_of_fame.count == 1 else 's' }} logged</div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>
