@@ -67,6 +67,14 @@ def edit_item_form(item_id: int, request: Request, db: Session = Depends(get_db)
     item = db.get(ActionItem, item_id)
     if item is None:
         return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+
+    # The assignee "reads" a pending review just by opening the item — clears
+    # the dashboard's "review" pill back to normal "in progress".
+    if item.needs_review and user.id == item.assignee_id:
+        item.needs_review = False
+        db.add(item)
+        db.commit()
+
     all_users = db.query(User).filter(User.is_active.is_(True)).order_by(User.email).all()
     return templates.TemplateResponse(
         request,
@@ -101,6 +109,7 @@ def update_item(
     item.description = description.strip()
     if assignee_id.strip():
         item.assignee_id = int(assignee_id)
+    item.needs_review = True
     item.updated_at = datetime.utcnow()
     db.add(item)
     db.commit()
@@ -121,6 +130,7 @@ def toggle_item_status(item_id: int, request: Request, db: Session = Depends(get
     if item.status == STATUS_IN_PROGRESS:
         item.status = STATUS_COMPLETED
         item.completed_at = datetime.utcnow()
+        item.needs_review = False
     else:
         item.status = STATUS_IN_PROGRESS
         item.completed_at = None
@@ -145,6 +155,7 @@ def add_item_note(item_id: int, body: str = Form(...), db: Session = Depends(get
     body = body.strip()
     if body:
         db.add(ActionItemNote(action_item_id=item.id, author_id=user.id, body=body))
+        item.needs_review = True
         item.updated_at = datetime.utcnow()
         db.add(item)
         db.commit()

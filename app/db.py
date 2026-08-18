@@ -49,6 +49,14 @@ def _ensure_columns() -> None:
                 text("ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1")
             )
 
+        action_item_cols = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(action_items)"))
+        }
+        if action_item_cols and "needs_review" not in action_item_cols:
+            conn.execute(
+                text("ALTER TABLE action_items ADD COLUMN needs_review BOOLEAN NOT NULL DEFAULT 0")
+            )
+
 
 def seed_default_admin() -> None:
     """Create the default admin on a fresh database (no users yet)."""

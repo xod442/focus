@@ -93,6 +93,11 @@ class ActionItem(Base):
     assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String, default=STATUS_IN_PROGRESS, index=True)
+    # Set whenever the item is edited or a note is added; cleared when the
+    # assignee (the "owner" actually doing the work) next views it. Drives the
+    # dashboard's "review" pill so they notice something changed since they
+    # last looked, without needing a separate notification.
+    needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

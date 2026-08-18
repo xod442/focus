@@ -132,6 +132,8 @@
         <td>{{ i.assignee.email }}</td>
         <td>
           {% if i.status == 'completed' %}<span class="status-badge status-complete">completed</span>
+          {% elif i.needs_review %}<span class="status-badge status-review"
+            title="Edited or noted since {{ i.assignee.email }} last looked">review</span>
           {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
         </td>
         <td>{{ i.updated_at.strftime('%Y-%m-%d') }}</td>

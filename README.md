@@ -24,6 +24,12 @@ laser-focused view during the call. Each row has a quick "mark complete /
 reopen" button plus a link to a full edit page (title/description,
 reassignment for managers & admins, and the notes log).
 
+Action items also get a **"review" pill**: editing the item or adding a note
+flips it from "in progress" to "review", so the assignee notices something
+changed since they last looked. It flips back to "in progress" automatically
+the next time the assignee opens the item — no separate "mark as read" step.
+Marking the item complete also clears it.
+
 Each row also has a small ✉ icon — click it to email the record's owner (task)
 or assignee (action item) directly from the dashboard. A modal opens with the
 recipient pre-filled (editable, but restricted to a known active user's

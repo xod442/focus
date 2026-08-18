@@ -7,6 +7,7 @@
     <h1>Action Item</h1>
   </div>
   {% if item.status == 'completed' %}<span class="status-badge status-complete">completed</span>
+  {% elif item.needs_review %}<span class="status-badge status-review">review</span>
   {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
 </div>
 

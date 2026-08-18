@@ -167,6 +167,7 @@ input:disabled { background: rgba(255, 255, 255, .04); color: var(--muted); }
 .status-in-progress { background: rgba(59, 130, 246, .2); color: #7db1ff; }
 .status-complete { background: var(--success-bg); color: var(--hpe-green-dark); }
 .status-blocked { background: var(--danger-bg); color: #ffb4b4; }
+.status-review { background: rgba(245, 158, 11, .22); color: #f5b13c; }
 
 /* ---- system log ---- */
 .status-badge.cat-auth { background: rgba(59, 130, 246, .2); color: #7db1ff; }
