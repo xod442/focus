@@ -57,7 +57,7 @@ def test_non_owner_member_cannot_edit_task(client, db_session, member_user, othe
     assert task.title == "Mine"  # unchanged
 
 
-def test_manager_can_edit_any_task(client, db_session, member_user, manager_user):
+def test_manager_cannot_edit_others_task(client, db_session, member_user, manager_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Owned by member"})
     client.post("/logout")
@@ -70,9 +70,9 @@ def test_manager_can_edit_any_task(client, db_session, member_user, manager_user
         "title": "Edited by manager", "description": "x", "owner_id": str(manager_user.id),
     })
     db_session.refresh(task)
-    assert task.title == "Edited by manager"
-    # Even a manager editing someone else's task cannot reassign ownership —
-    # owner_id isn't an accepted field at all anymore.
+    # Tasks are a personal to-do list — not even a manager can edit or
+    # reassign someone else's task. They can only see it for visibility.
+    assert task.title == "Owned by member"
     assert task.owner_id == member_user.id
 
 
@@ -82,19 +82,33 @@ def test_new_task_form_has_no_owner_field(client, member_user):
     assert "name=\"owner_id\"" not in r.text
 
 
-def test_task_edit_form_shows_owner_read_only_for_everyone(client, db_session, member_user,
-                                                            manager_user):
+def test_task_edit_form_shows_owner_read_only_to_owner(client, db_session, member_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Read only owner check"})
-    client.post("/logout")
-
     from app.models import Task
     task = db_session.query(Task).filter(Task.title == "Read only owner check").one()
 
-    login(client, manager_user)
     r = client.get(f"/tasks/{task.id}/edit")
     assert "<select name=\"owner_id\"" not in r.text
     assert f'value="{member_user.email}" disabled' in r.text
+
+
+def test_task_edit_page_is_read_only_for_non_owner(client, db_session, member_user, manager_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Visible but not editable"})
+    client.post("/logout")
+
+    from app.models import Task
+    task = db_session.query(Task).filter(Task.title == "Visible but not editable").one()
+
+    login(client, manager_user)
+    r = client.get(f"/tasks/{task.id}/edit")
+    # A non-owner (even a manager) gets the read-only view: no title input,
+    # no note-add form, no status/delete buttons.
+    assert "name=\"title\"" not in r.text
+    assert f"action=\"/tasks/{task.id}/notes\"" not in r.text
+    assert f"action=\"/tasks/{task.id}/delete\"" not in r.text
+    assert "Visible but not editable" in r.text
 
 
 def test_toggle_task_status(client, db_session, member_user):
@@ -115,6 +129,20 @@ def test_toggle_task_status(client, db_session, member_user):
     assert task.completed_at is None
 
 
+def test_manager_cannot_toggle_others_task_status(client, db_session, member_user, manager_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Hands off"})
+    client.post("/logout")
+
+    from app.models import STATUS_IN_PROGRESS, Task
+    task = db_session.query(Task).filter(Task.title == "Hands off").one()
+
+    login(client, manager_user)
+    client.post(f"/tasks/{task.id}/status")
+    db_session.refresh(task)
+    assert task.status == STATUS_IN_PROGRESS
+
+
 def test_add_task_note(client, db_session, member_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Notable"})
@@ -127,7 +155,36 @@ def test_add_task_note(client, db_session, member_user):
     assert task.notes[0].author_id == member_user.id
 
 
-def test_delete_task_requires_permission(client, db_session, member_user, other_member):
+def test_non_owner_cannot_add_task_note(client, db_session, member_user, other_member):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Private notes"})
+    client.post("/logout")
+
+    from app.models import Task
+    task = db_session.query(Task).filter(Task.title == "Private notes").one()
+
+    login(client, other_member)
+    client.post(f"/tasks/{task.id}/notes", data={"body": "sneaky note"})
+    db_session.refresh(task)
+    assert len(task.notes) == 0
+
+
+def test_manager_cannot_add_task_note(client, db_session, member_user, manager_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Manager can't note this"})
+    client.post("/logout")
+
+    from app.models import Task
+    task = db_session.query(Task).filter(Task.title == "Manager can't note this").one()
+
+    login(client, manager_user)
+    client.post(f"/tasks/{task.id}/notes", data={"body": "manager note"})
+    db_session.refresh(task)
+    assert len(task.notes) == 0
+
+
+def test_delete_task_requires_permission(client, db_session, member_user, other_member,
+                                          manager_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "To delete"})
     client.post("/logout")
@@ -138,6 +195,11 @@ def test_delete_task_requires_permission(client, db_session, member_user, other_
     login(client, other_member)
     client.post(f"/tasks/{task.id}/delete")
     assert db_session.get(Task, task.id) is not None  # not deleted
+
+    client.post("/logout")
+    login(client, manager_user)
+    client.post(f"/tasks/{task.id}/delete")
+    assert db_session.get(Task, task.id) is not None  # not even a manager can delete it
 
     client.post("/logout")
     login(client, member_user)

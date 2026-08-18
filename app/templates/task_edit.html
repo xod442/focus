@@ -38,7 +38,8 @@
   </div>
   {% else %}
   <p class="muted">
-    Owned by <strong>{{ task.owner.email }}</strong>. Only the owner, a manager, or an admin can edit this task.
+    Owned by <strong>{{ task.owner.email }}</strong>. Tasks are a personal to-do list — only the
+    owner can edit, note, or delete it. It shows here for visibility only.
   </p>
   <p>{{ task.description or "No description." }}</p>
   {% endif %}
@@ -47,10 +48,12 @@
 <section class="card">
   <h2>Notes</h2>
   <p class="hint">A running log — add a comment each week's team call.</p>
+  {% if can_edit %}
   <form method="post" action="{{ rp }}/tasks/{{ task.id }}/notes" class="inline-form">
     <input type="text" name="body" placeholder="Add a note..." required style="flex:1 1 auto;">
     <button class="btn btn-sm" type="submit">Add</button>
   </form>
+  {% endif %}
   {% if task.notes %}
   <ul class="queue-list" style="margin-top:12px;">
     {% for n in task.notes %}

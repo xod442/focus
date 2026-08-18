@@ -130,7 +130,7 @@ def add_task_note(task_id: int, body: str = Form(...), db: Session = Depends(get
     if user is None:
         return _login()
     task = db.get(Task, task_id)
-    if task is None:
+    if task is None or not perm.can_edit_task(user, task):
         return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
     body = body.strip()
     if body:

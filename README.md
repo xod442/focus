@@ -22,9 +22,11 @@ record and its owner's/assignee's email. Filter by status (open / completed /
 all) and by person, so anyone can filter down to just their own items for a
 laser-focused view during the call. Each row has a quick "mark complete /
 reopen" button plus a link to a full edit page (title/description, and the
-notes log). Tasks are a personal to-do list and are never reassignable — only
-the person who created a task owns it. Action items can be assigned to
-anyone (including yourself), and managers/admins can reassign those.
+notes log). Tasks are a personal to-do list: only the owner can edit,
+add a note, toggle status, or delete a task — everyone else only sees it on
+the dashboard for visibility, with no edit access at all (not even managers
+or admins). Action items can be assigned to anyone (including yourself), and
+managers/admins can edit or reassign those.
 
 Action items also get a **"review" pill**: editing the item or adding a note
 flips it from "in progress" to "review", so the assignee notices something
@@ -96,8 +98,8 @@ not `localhost`. If `SSO_SHARED_SECRET` is empty, the button is hidden and
 
 | Role      | Can do |
 |-----------|--------|
-| `member`  | Create tasks for themselves only (never reassignable); create action items assigned to anyone. Edit their own tasks, or action items they requested or are assigned. |
-| `manager` | Everything a member can, plus edit **any** task's title/description and reassign **any** action item (team-lead oversight), plus the full admin console (users, invites, backups). |
+| `member`  | Create tasks for themselves only (never reassignable, and only the owner can edit/note/delete/toggle status — visible to others but locked); create action items assigned to anyone. Edit action items they requested or are assigned. |
+| `manager` | Everything a member can, plus edit or reassign **any** action item (team-lead oversight), plus the full admin console (users, invites, backups). Tasks stay locked to their owner even for managers/admins. |
 | `admin`   | Same access as manager. Intended for whoever owns the deployment. |
 
 ## User management & invitations

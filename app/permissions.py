@@ -9,11 +9,11 @@ from .models import ActionItem, AuditLog, STAFF_ROLES, Task
 
 
 def can_edit_task(user, task: Task) -> bool:
-    """Only the task's owner, or a manager/admin, may edit or reassign it."""
+    """Tasks are a personal to-do list — only the owner may edit, note, or
+    delete it, regardless of role. Everyone else can still see it on the
+    dashboard for visibility, but can't touch it."""
     if user is None:
         return False
-    if user.role in STAFF_ROLES:
-        return True
     return user.id == task.owner_id
 
 
