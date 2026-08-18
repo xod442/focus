@@ -74,16 +74,18 @@ h2 { font-size: 1.05rem; margin: 0 0 14px; }
   max-width: 380px;
   margin: 16px auto 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  text-align: center;
+  gap: 6px;
   background: linear-gradient(135deg, rgba(245, 190, 60, .14), rgba(245, 190, 60, .04));
   border: 1px solid rgba(245, 190, 60, .4);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 16px;
 }
-.hof-trophy { font-size: 1.8rem; line-height: 1; flex: none; }
+.hof-trophy { font-size: 1.8rem; line-height: 1; }
 .hof-title { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #f5be3c; }
-.hof-text { font-size: .84rem; color: var(--text); margin-top: 2px; }
+.hof-text { font-size: .84rem; color: var(--text); }
 .hof-text strong { color: var(--hpe-green-dark); }
 
 label { display: block; margin-bottom: 14px; font-size: .85rem; color: var(--muted); }
