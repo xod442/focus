@@ -66,8 +66,11 @@ def test_role_change(client, db_session, admin_user, member_user):
 
 
 def test_delete_blocked_while_user_owns_open_items(client, db_session, admin_user, member_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Owned"})
+    client.post("/logout")
+
     login(client, admin_user)
-    client.post("/tasks", data={"title": "Owned", "owner_id": str(member_user.id)})
     r = client.post(f"/admin/users/{member_user.id}/delete", follow_redirects=False)
     from urllib.parse import unquote
     assert "still owns" in unquote(r.headers["location"])

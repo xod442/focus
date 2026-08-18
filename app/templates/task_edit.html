@@ -19,19 +19,10 @@
     <label>Description / notes
       <textarea name="description" rows="4">{{ task.description }}</textarea>
     </label>
-    {% if can_reassign %}
-    <label>Owner
-      <select name="owner_id">
-        {% for u in all_users %}
-        <option value="{{ u.id }}" {% if u.id == task.owner_id %}selected{% endif %}>{{ u.email }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% else %}
     <label>Owner
       <input type="text" value="{{ task.owner.email }}" disabled>
+      <span class="hint">Tasks aren't reassignable — this stays with whoever created it.</span>
     </label>
-    {% endif %}
     <button class="btn" type="submit">Save changes</button>
   </form>
   <div class="backup-actions" style="margin-top:14px;">

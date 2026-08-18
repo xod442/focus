@@ -15,15 +15,8 @@
     <label>Description / notes
       <textarea name="description" rows="4" placeholder="Optional details"></textarea>
     </label>
-    {% if user.role in ['admin', 'manager'] %}
-    <label>Owner
-      <select name="owner_id">
-        {% for u in all_users %}
-        <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.email }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% endif %}
+    <p class="hint">Tasks are your own personal to-do list — this will be created for
+      {{ user.email }}. To hand work to someone else, create an Action Item instead.</p>
     <button class="btn" type="submit">Create task</button>
   </form>
 </section>

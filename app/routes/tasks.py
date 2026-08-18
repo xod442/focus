@@ -9,8 +9,7 @@ from .. import permissions as perm
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import (
-    MESSAGE_BODY_MAX_LEN, Message, STAFF_ROLES, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task,
-    TaskNote, User,
+    MESSAGE_BODY_MAX_LEN, Message, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, TaskNote, User,
 )
 from datetime import datetime
 from urllib.parse import quote
@@ -24,13 +23,10 @@ def _login() -> RedirectResponse:
 
 
 @router.get("/tasks/new", response_class=HTMLResponse)
-def new_task_form(request: Request, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def new_task_form(request: Request, user=Depends(get_current_user)):
     if user is None:
         return _login()
-    all_users = db.query(User).filter(User.is_active.is_(True)).order_by(User.email).all()
-    return templates.TemplateResponse(
-        request, "task_new.html", {"request": request, "user": user, "all_users": all_users}
-    )
+    return templates.TemplateResponse(request, "task_new.html", {"request": request, "user": user})
 
 
 @router.post("/tasks")
@@ -38,21 +34,15 @@ def create_task(
     request: Request,
     title: str = Form(...),
     description: str = Form(""),
-    owner_id: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     if user is None:
         return _login()
 
-    # Regular members may only create a task for themselves; managers/admins
-    # may plan work for anyone on the team.
-    if user.role in STAFF_ROLES and owner_id.strip():
-        target_owner = int(owner_id)
-    else:
-        target_owner = user.id
-
-    task = Task(owner_id=target_owner, title=title.strip(), description=description.strip())
+    # Tasks are a personal to-do list — always owned by whoever creates them.
+    # Use an Action Item to hand work to someone else.
+    task = Task(owner_id=user.id, title=title.strip(), description=description.strip())
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -69,7 +59,6 @@ def edit_task_form(task_id: int, request: Request, db: Session = Depends(get_db)
     task = db.get(Task, task_id)
     if task is None:
         return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
-    all_users = db.query(User).filter(User.is_active.is_(True)).order_by(User.email).all()
     return templates.TemplateResponse(
         request,
         "task_edit.html",
@@ -77,9 +66,7 @@ def edit_task_form(task_id: int, request: Request, db: Session = Depends(get_db)
             "request": request,
             "user": user,
             "task": task,
-            "all_users": all_users,
             "can_edit": perm.can_edit_task(user, task),
-            "can_reassign": user.role in STAFF_ROLES,
         },
     )
 
@@ -90,7 +77,6 @@ def update_task(
     request: Request,
     title: str = Form(...),
     description: str = Form(""),
-    owner_id: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -102,10 +88,9 @@ def update_task(
     if not perm.can_edit_task(user, task):
         return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
 
+    # Ownership is never reassignable — tasks stay with whoever created them.
     task.title = title.strip()
     task.description = description.strip()
-    if user.role in STAFF_ROLES and owner_id.strip():
-        task.owner_id = int(owner_id)
     task.updated_at = datetime.utcnow()
     db.add(task)
     db.commit()

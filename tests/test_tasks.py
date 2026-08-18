@@ -10,21 +10,24 @@ def test_member_can_create_task_for_self(client, member_user):
     assert "Ship the report" in r.text
 
 
-def test_member_cannot_assign_task_to_someone_else(client, db_session, member_user, other_member):
+def test_task_always_owned_by_creator_even_if_owner_id_submitted(client, db_session,
+                                                                   member_user, other_member):
     login(client, member_user)
     client.post("/tasks", data={"title": "Sneaky", "owner_id": str(other_member.id)})
     from app.models import Task
     task = db_session.query(Task).filter(Task.title == "Sneaky").one()
-    # Regular members can't set owner_id — it's forced back to themselves.
+    # owner_id is no longer an accepted field at all — tasks are a personal
+    # to-do list, always owned by whoever creates them.
     assert task.owner_id == member_user.id
 
 
-def test_manager_can_assign_task_to_anyone(client, db_session, manager_user, other_member):
+def test_manager_cannot_assign_task_to_someone_else_either(client, db_session, manager_user,
+                                                            other_member):
     login(client, manager_user)
     client.post("/tasks", data={"title": "Planned for other", "owner_id": str(other_member.id)})
     from app.models import Task
     task = db_session.query(Task).filter(Task.title == "Planned for other").one()
-    assert task.owner_id == other_member.id
+    assert task.owner_id == manager_user.id  # never reassignable, even for staff
 
 
 def test_owner_can_edit_own_task(client, db_session, member_user):
@@ -63,9 +66,35 @@ def test_manager_can_edit_any_task(client, db_session, member_user, manager_user
     task = db_session.query(Task).filter(Task.title == "Owned by member").one()
 
     login(client, manager_user)
-    client.post(f"/tasks/{task.id}", data={"title": "Edited by manager", "description": "x"})
+    client.post(f"/tasks/{task.id}", data={
+        "title": "Edited by manager", "description": "x", "owner_id": str(manager_user.id),
+    })
     db_session.refresh(task)
     assert task.title == "Edited by manager"
+    # Even a manager editing someone else's task cannot reassign ownership —
+    # owner_id isn't an accepted field at all anymore.
+    assert task.owner_id == member_user.id
+
+
+def test_new_task_form_has_no_owner_field(client, member_user):
+    login(client, member_user)
+    r = client.get("/tasks/new")
+    assert "name=\"owner_id\"" not in r.text
+
+
+def test_task_edit_form_shows_owner_read_only_for_everyone(client, db_session, member_user,
+                                                            manager_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Read only owner check"})
+    client.post("/logout")
+
+    from app.models import Task
+    task = db_session.query(Task).filter(Task.title == "Read only owner check").one()
+
+    login(client, manager_user)
+    r = client.get(f"/tasks/{task.id}/edit")
+    assert "<select name=\"owner_id\"" not in r.text
+    assert f'value="{member_user.email}" disabled' in r.text
 
 
 def test_toggle_task_status(client, db_session, member_user):

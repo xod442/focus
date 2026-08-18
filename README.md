@@ -21,8 +21,10 @@ The home page shows two sections — Tasks and Action Items — with every open
 record and its owner's/assignee's email. Filter by status (open / completed /
 all) and by person, so anyone can filter down to just their own items for a
 laser-focused view during the call. Each row has a quick "mark complete /
-reopen" button plus a link to a full edit page (title/description,
-reassignment for managers & admins, and the notes log).
+reopen" button plus a link to a full edit page (title/description, and the
+notes log). Tasks are a personal to-do list and are never reassignable — only
+the person who created a task owns it. Action items can be assigned to
+anyone (including yourself), and managers/admins can reassign those.
 
 Action items also get a **"review" pill**: editing the item or adding a note
 flips it from "in progress" to "review", so the assignee notices something
@@ -94,8 +96,8 @@ not `localhost`. If `SSO_SHARED_SECRET` is empty, the button is hidden and
 
 | Role      | Can do |
 |-----------|--------|
-| `member`  | Create tasks for themselves; create action items assigned to anyone. Edit/reassign only tasks they own, or action items they requested or are assigned. |
-| `manager` | Everything a member can, plus edit/reassign **any** task or action item (team-lead oversight), plus the full admin console (users, invites, backups). |
+| `member`  | Create tasks for themselves only (never reassignable); create action items assigned to anyone. Edit their own tasks, or action items they requested or are assigned. |
+| `manager` | Everything a member can, plus edit **any** task's title/description and reassign **any** action item (team-lead oversight), plus the full admin console (users, invites, backups). |
 | `admin`   | Same access as manager. Intended for whoever owns the deployment. |
 
 ## User management & invitations
