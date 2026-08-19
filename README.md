@@ -7,6 +7,9 @@ outstanding between teammates.
 
 Replaces "email me what you did last week" with a living dashboard of:
 
+> **Design:** see [`DESIGN.md`](DESIGN.md) for the shared token reference and
+> UI process/checklist used across opal, opal-mist, holo, focus, and vista.
+
 - **Tasks** — work a person plans to accomplish over the next week or two.
   Stays on the dashboard until marked completed.
 - **Action Items** — something one person needs another person (or
