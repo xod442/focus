@@ -13,7 +13,7 @@ from .db import SessionLocal, init_db
 from .deps import get_current_user
 from .models import User, STAFF_ROLES
 from .routes import (
-    account, action_items, admin, auth, dashboard, logs, messages, metrics, sso, tasks,
+    account, action_items, admin, api, auth, dashboard, logs, messages, metrics, sso, tasks,
 )
 
 # Paths a user with a pending password change may still reach. /sso/holo is
@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(messages.router)
     app.include_router(metrics.router)
     app.include_router(sso.router)
+    app.include_router(api.router)
 
     # --- Admin-only, self-hosted API docs (Swagger) --------------------------
     _root = config.ROOT_PATH.rstrip("/")

@@ -190,6 +190,25 @@ unmodified.
 | `FOCUS_DNS1` / `FOCUS_DNS2` | `8.8.8.8` / `8.8.4.4` | DNS resolvers for the container (needed for the SMTP forwarder in host-networking mode). |
 | `SSO_SHARED_SECRET` | *(empty — SSO disabled)* | Enables the HOLO SSO hand-off; must match HOLO's own `SSO_SHARED_SECRET` exactly. |
 | `HOLO_BASE_URL` | `http://localhost:9093` | Browser-reachable URL for HOLO — override for production (edge hostname/path, not the container's own view of "localhost"). |
+| `FOCUS_API_KEY` | *(empty — disabled)* | Enables the read-only `/api/v1/...` JSON API (see below). Callers send it in an `X-API-Key` header. |
+
+## Read-only API for external integrations
+
+`/api/v1/...` is a small, read-only JSON API for programmatic access — used by
+**VISTA** to build its cross-application executive dashboard. It's guarded by a
+static key (`FOCUS_API_KEY`) in an `X-API-Key` header, entirely separate from
+the session-cookie auth used everywhere else. Leave `FOCUS_API_KEY` empty to
+disable it (every route 404s).
+
+| Route | Returns |
+|---|---|
+| `GET /api/v1/summary` | Open/completed task & action item counts, stale counts, per-person workload, the 8-week completion trend, and the oldest open items. |
+| `GET /api/v1/users` | The user roster (id, email, role, active flag, forced-password-change flag) — never password hashes. |
+| `GET /api/v1/activity?days=7\|30\|90` | Per-user audit-log activity count and most recent login over the window (the same data behind FOCUS's own usage chart). |
+
+```bash
+curl -H "X-API-Key: $FOCUS_API_KEY" http://localhost:9094/api/v1/summary
+```
 
 ## Stack
 

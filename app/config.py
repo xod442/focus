@@ -53,3 +53,8 @@ SSO_SHARED_SECRET = os.getenv("SSO_SHARED_SECRET", "").strip()
 SSO_SALT = "focus-holo-sso"
 SSO_TOKEN_MAX_AGE = 60  # seconds — the link is only valid for a brief window
 HOLO_BASE_URL = os.getenv("HOLO_BASE_URL", "http://localhost:9093").rstrip("/")
+
+# ── Read-only JSON API (/api/v1/...) for external integrations, e.g. the ──
+# VISTA executive dashboard. Guarded by a static key in the X-API-Key header,
+# independent of session-cookie auth. Empty = the API is disabled (404s).
+API_KEY = os.getenv("FOCUS_API_KEY", "").strip()

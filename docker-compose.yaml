@@ -35,6 +35,9 @@ services:
       # HOLO's own SSO_SHARED_SECRET exactly.
       - SSO_SHARED_SECRET=${SSO_SHARED_SECRET:-}
       - HOLO_BASE_URL=${HOLO_BASE_URL:-http://localhost:9093}
+      # Read-only JSON API (/api/v1/...) for external integrations (VISTA).
+      # Empty = disabled. Must match the key VISTA is configured to send.
+      - FOCUS_API_KEY=${FOCUS_API_KEY:-}
     volumes:
       - focus-data:/data
     restart: unless-stopped
