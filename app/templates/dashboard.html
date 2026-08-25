@@ -68,6 +68,11 @@
   <span class="filter-count">{{ open_task_count }} open task{{ '' if open_task_count == 1 else 's' }} ·
     {{ open_item_count }} open action item{{ '' if open_item_count == 1 else 's' }}</span>
   {% if status_sel != 'open' or person_sel %}<a class="filter-clear" href="{{ rp }}/">clear</a>{% endif %}
+  {% if person_sel == 'me' %}
+    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/me/executive?days=30">Executive view</a>
+  {% elif person_sel and person_sel.isdigit() %}
+    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/{{ person_sel }}/executive?days=30">Executive view</a>
+  {% endif %}
 </form>
 
 <section class="card">

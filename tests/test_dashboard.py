@@ -38,3 +38,13 @@ def test_person_filter_me(client, db_session, member_user, other_member):
     r = client.get("/?person=me")
     assert "Others task" in r.text
     assert "Mine only" not in r.text
+
+
+def test_executive_view_for_me(client, member_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Executive task"})
+
+    r = client.get("/users/me/executive?days=30")
+    assert r.status_code == 200
+    assert "Executive performance view" in r.text
+    assert "Executive task" in r.text
