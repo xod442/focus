@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import backup, config
 from .db import SessionLocal, init_db
 from .deps import get_current_user
-from .models import User, STAFF_ROLES
+from .models import ActionItem, Message, STATUS_IN_PROGRESS, User, STAFF_ROLES
 from .routes import (
     account, action_items, admin, api, auth, dashboard, logs, messages, metrics, sso, tasks,
 )
@@ -50,6 +50,31 @@ async def _enforce_password_change(request, call_next):
     return _prefix_location(await call_next(request))
 
 
+async def _inject_attention_badge(request, call_next):
+    """Stash a small "needs your attention" count (unread messages + action
+    items flipped to "review") on request.state, so the nav badge in
+    base.html can render on every page without every route computing it."""
+    request.state.attention_count = 0
+    user_id = request.session.get("user_id")
+    if user_id and not request.url.path.startswith("/assets"):
+        db = SessionLocal()
+        try:
+            unread = db.query(Message).filter(Message.recipient_id == user_id).count()
+            needs_review = (
+                db.query(ActionItem)
+                .filter(
+                    ActionItem.assignee_id == user_id,
+                    ActionItem.status == STATUS_IN_PROGRESS,
+                    ActionItem.needs_review.is_(True),
+                )
+                .count()
+            )
+            request.state.attention_count = unread + needs_review
+        finally:
+            db.close()
+    return await call_next(request)
+
+
 def create_app() -> FastAPI:
     # Disable the built-in docs (they load Swagger assets from a CDN the HPE VPN
     # blocks). We serve an admin-gated, self-hosted Swagger UI below.
@@ -61,6 +86,7 @@ def create_app() -> FastAPI:
     # Added first = inner; SessionMiddleware added last = outer, so request.session
     # is populated by the time the enforcement middleware runs.
     app.add_middleware(BaseHTTPMiddleware, dispatch=_enforce_password_change)
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_inject_attention_badge)
     app.add_middleware(
         SessionMiddleware,
         secret_key=config.SECRET_KEY,

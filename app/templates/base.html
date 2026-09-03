@@ -15,7 +15,7 @@
     </div>
     {% if user %}
     <nav class="nav">
-      <a class="navlink" href="{{ rp }}/">Dashboard</a>
+      <a class="navlink" href="{{ rp }}/">Dashboard{% if attention_count(request) %}<span class="nav-badge" title="Unread messages / action items needing your attention">{{ attention_count(request) }}</span>{% endif %}</a>
       <a class="navlink" href="{{ rp }}/metrics">Metrics</a>
       {% if config.SSO_SHARED_SECRET %}
       <a class="navlink holo-link" href="{{ rp }}/go/holo" target="_blank" rel="noopener"

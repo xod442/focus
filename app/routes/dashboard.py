@@ -18,6 +18,8 @@ from ..web import templates
 
 router = APIRouter()
 
+RECENT_COMPLETED_LIMIT = 6
+
 
 def _login() -> RedirectResponse:
     return RedirectResponse("/login", status_code=http_status.HTTP_303_SEE_OTHER)
@@ -94,6 +96,33 @@ def dashboard(
         .all()
     )
 
+    # A short "what got done" list — recently completed work across the whole
+    # team, for a quick accomplishment read without parsing the metrics trend
+    # chart. Cheap: reuses the same completed_at column the trend chart does.
+    recent_completed = [
+        {"kind": "Task", "label": t.title, "who": t.owner.email, "completed_at": t.completed_at}
+        for t in db.query(Task)
+        .filter(Task.status == STATUS_COMPLETED, Task.completed_at.isnot(None))
+        .order_by(Task.completed_at.desc())
+        .limit(RECENT_COMPLETED_LIMIT)
+        .all()
+    ] + [
+        {
+            "kind": "Action Item",
+            "label": i.description,
+            "who": i.assignee.email,
+            "completed_at": i.completed_at,
+        }
+        for i in db.query(ActionItem)
+        .filter(ActionItem.status == STATUS_COMPLETED, ActionItem.completed_at.isnot(None))
+        .order_by(ActionItem.completed_at.desc())
+        .limit(RECENT_COMPLETED_LIMIT)
+        .all()
+    ]
+    recent_completed = sorted(
+        recent_completed, key=lambda row: row["completed_at"], reverse=True
+    )[:RECENT_COMPLETED_LIMIT]
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -109,6 +138,7 @@ def dashboard(
             "open_item_count": open_item_count,
             "my_messages": my_messages,
             "message_max_len": MESSAGE_BODY_MAX_LEN,
+            "recent_completed": recent_completed,
             "ok": bool(ok),
             "msg": msg,
         },

@@ -133,6 +133,14 @@ input:disabled { background: rgba(255, 255, 255, .04); color: var(--muted); }
 .navlink { color: #cbd5e1; text-decoration: none; font-size: .9rem; }
 .navlink:hover { color: #fff; }
 
+/* ---- nav "needs your attention" badge (unread messages / review items) ---- */
+.nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; margin-left: 5px; padding: 0 5px;
+  border-radius: 999px; background: #f5b13c; color: #2a1c02;
+  font-size: .68rem; font-weight: 800; line-height: 17px; vertical-align: 2px;
+}
+
 /* ---- HOLO SSO launcher (external-app shortcut in the nav) ---- */
 .holo-link {
   border: 1px solid var(--hpe-green);
@@ -321,6 +329,17 @@ input:disabled { background: rgba(255, 255, 255, .04); color: var(--muted); }
   color: var(--hpe-green-dark); box-shadow: inset 0 0 0 1px rgba(1,169,130,.12);
 }
 .exec-cta:hover { border-color: var(--hpe-green); background: rgba(1,169,130,.14); }
+.mine-chip.active { border-color: var(--hpe-green); background: rgba(1,169,130,.14); color: var(--hpe-green-dark); }
+
+/* ---- recently completed (dashboard "wins" strip) ---- */
+.recent-list { list-style: none; margin: 0; padding: 0; }
+.recent-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--line); font-size: .88rem;
+}
+.recent-row:last-child { border-bottom: none; }
+.recent-label { flex: 1; }
+.recent-meta { font-size: .78rem; white-space: nowrap; }
 
 /* ---- approval queue ---- */
 .queue { border-left: 4px solid #f59e0b; }

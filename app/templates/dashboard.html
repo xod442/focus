@@ -8,12 +8,31 @@
     <p class="muted overview-sub">Everything open across the team, reviewed together on the weekly call.</p>
   </div>
   <div class="backup-actions">
+    <a class="btn btn-sm ghost mine-chip{% if person_sel == 'me' %} active{% endif %}"
+       href="{{ rp }}/?status_filter=open&amp;person=me" title="Just my open tasks &amp; action items">Just mine</a>
     <a class="btn btn-sm" href="{{ rp }}/tasks/new">+ New Task</a>
     <a class="btn btn-sm ghost" href="{{ rp }}/action-items/new">+ New Action Item</a>
   </div>
 </div>
 
 {% if msg %}<div class="alert {{ 'success' if ok else 'error' }}">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h2>Recently completed <span class="muted">— the team's latest wins</span></h2>
+  {% if recent_completed %}
+  <ul class="recent-list">
+    {% for row in recent_completed %}
+    <li class="recent-row">
+      <span class="status-badge status-complete">{{ row.kind }}</span>
+      <span class="recent-label">{{ row.label }}</span>
+      <span class="muted recent-meta">{{ row.who }} · {{ row.completed_at.strftime('%Y-%m-%d') }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nothing completed yet.</p>
+  {% endif %}
+</section>
 
 <section class="card">
   <h2>My Messages <span class="muted">— quick pings sent to you; clear once read</span></h2>

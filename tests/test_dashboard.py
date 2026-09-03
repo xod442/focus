@@ -17,14 +17,31 @@ def test_status_filter_completed(client, db_session, member_user):
     task = db_session.query(Task).filter(Task.title == "Finish me").one()
     client.post(f"/tasks/{task.id}/status")  # mark complete
 
+    # "Finish me" is deliberately still shown in the "Recently completed" strip
+    # regardless of the status filter, so check the Tasks *table* row link
+    # specifically rather than the whole page.
+    row_link = f'href="/tasks/{task.id}/edit">Finish me'
+
     r = client.get("/?status_filter=open")
-    assert "Finish me" not in r.text
+    assert row_link not in r.text
 
     r = client.get("/?status_filter=completed")
-    assert "Finish me" in r.text
+    assert row_link in r.text
 
     r = client.get("/?status_filter=all")
-    assert "Finish me" in r.text
+    assert row_link in r.text
+
+
+def test_recently_completed_shown_regardless_of_status_filter(client, db_session, member_user):
+    login(client, member_user)
+    client.post("/tasks", data={"title": "Ship the report"})
+    from app.models import Task
+    task = db_session.query(Task).filter(Task.title == "Ship the report").one()
+    client.post(f"/tasks/{task.id}/status")  # mark complete
+
+    r = client.get("/?status_filter=open")
+    assert "Recently completed" in r.text
+    assert "Ship the report" in r.text
 
 
 def test_person_filter_me(client, db_session, member_user, other_member):
