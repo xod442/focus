@@ -4,7 +4,7 @@
 - incoming: verify a token HOLO generated the same way, and log the person
   into FOCUS if a matching account exists.
 """
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
@@ -34,6 +34,29 @@ def _login_redirect(message: str) -> RedirectResponse:
     return RedirectResponse(f"/login?error={quote(message)}", status_code=status.HTTP_303_SEE_OTHER)
 
 
+def _vista_return_url(candidate: str) -> str:
+    """Allow only VISTA-2's exact callback path as an SSO continuation."""
+    if not candidate:
+        return ""
+    expected = urlsplit(f"{config.VISTA_BASE_URL}/auth/callback")
+    actual = urlsplit(candidate)
+    if (
+        actual.scheme == expected.scheme
+        and actual.netloc == expected.netloc
+        and actual.path == expected.path
+    ):
+        return candidate
+    return ""
+
+
+def _return_with_error(return_url: str, message: str) -> RedirectResponse:
+    separator = "&" if "?" in return_url else "?"
+    return RedirectResponse(
+        f"{return_url}{separator}sso_error={quote(message)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @router.get("/go/holo")
 def go_to_holo(request: Request, db=Depends(get_db), user=Depends(get_current_user)):
     if user is None:
@@ -52,25 +75,44 @@ def go_to_holo(request: Request, db=Depends(get_db), user=Depends(get_current_us
 
 
 @router.get("/sso/holo")
-def sso_from_holo(request: Request, token: str = "", db: Session = Depends(get_db)):
+def sso_from_holo(
+    request: Request,
+    token: str = "",
+    next: str = "",
+    db: Session = Depends(get_db),
+):
+    vista_return = _vista_return_url(next)
     if not config.SSO_SHARED_SECRET:
+        if vista_return:
+            return _return_with_error(vista_return, "FOCUS single sign-on is not configured.")
         return _login_redirect("Single sign-on from HOLO is not enabled on this server.")
     if not token:
+        if vista_return:
+            return _return_with_error(vista_return, "Missing FOCUS sign-on token.")
         return _login_redirect("Missing sign-on token.")
 
     try:
         payload = _serializer().loads(token, max_age=config.SSO_TOKEN_MAX_AGE)
     except SignatureExpired:
+        if vista_return:
+            return _return_with_error(vista_return, "The FOCUS sign-on token expired.")
         return _login_redirect("That sign-on link expired — go back to HOLO and try again.")
     except BadSignature:
+        if vista_return:
+            return _return_with_error(vista_return, "Invalid FOCUS sign-on token.")
         return _login_redirect("Invalid sign-on token.")
 
     email = (payload.get("email") or "").strip().lower()
     user = db.query(User).filter(User.email == email, User.is_active.is_(True)).first() if email else None
     if user is None:
+        if vista_return:
+            return _return_with_error(
+                vista_return,
+                f"No active FOCUS account exists for {email or 'that address'}.",
+            )
         return _login_redirect(f"No FOCUS account exists for {email or 'that address'}.")
 
     request.session["user_id"] = user.id
     audit.log(db, user, "sso.login_from_holo", target_type="user", target_id=user.id,
               target_label=user.email)
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(vista_return or "/", status_code=status.HTTP_303_SEE_OTHER)

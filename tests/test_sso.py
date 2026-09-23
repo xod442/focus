@@ -134,3 +134,52 @@ def test_sso_from_holo_rejects_wrong_secret(client, member_user, monkeypatch):
     location = unquote(r.headers["location"])
     assert location.startswith("/login?error=")
     assert "Invalid" in location
+
+
+def test_sso_from_holo_returns_to_vista_after_login(client, member_user, monkeypatch):
+    monkeypatch.setattr(config, "SSO_SHARED_SECRET", "shared-test-secret")
+    monkeypatch.setattr(config, "VISTA_BASE_URL", "http://localhost:9098")
+    token = _token_for(member_user.email)
+    callback = f"http://localhost:9098/auth/callback?token={token}"
+
+    response = client.get(
+        "/sso/holo",
+        params={"token": token, "next": callback},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == callback
+    assert client.get("/", follow_redirects=False).status_code == 200
+
+
+def test_sso_from_holo_returns_focus_account_error_to_vista(client, monkeypatch):
+    monkeypatch.setattr(config, "SSO_SHARED_SECRET", "shared-test-secret")
+    monkeypatch.setattr(config, "VISTA_BASE_URL", "http://localhost:9098")
+    token = _token_for("missing@test.local")
+    callback = f"http://localhost:9098/auth/callback?token={token}"
+
+    response = client.get(
+        "/sso/holo",
+        params={"token": token, "next": callback},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith(callback + "&sso_error=")
+    assert "No%20active%20FOCUS%20account" in response.headers["location"]
+
+
+def test_sso_from_holo_rejects_external_continuation(client, member_user, monkeypatch):
+    monkeypatch.setattr(config, "SSO_SHARED_SECRET", "shared-test-secret")
+    monkeypatch.setattr(config, "VISTA_BASE_URL", "http://localhost:9098")
+    token = _token_for(member_user.email)
+
+    response = client.get(
+        "/sso/holo",
+        params={"token": token, "next": "https://attacker.example/auth/callback"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"

@@ -193,6 +193,7 @@ unmodified.
 | `FOCUS_DNS1` / `FOCUS_DNS2` | `8.8.8.8` / `8.8.4.4` | DNS resolvers for the container (needed for the SMTP forwarder in host-networking mode). |
 | `SSO_SHARED_SECRET` | *(empty — SSO disabled)* | Enables the HOLO SSO hand-off; must match HOLO's own `SSO_SHARED_SECRET` exactly. |
 | `HOLO_BASE_URL` | `http://localhost:9093` | Browser-reachable URL for HOLO — override for production (edge hostname/path, not the container's own view of "localhost"). |
+| `VISTA_BASE_URL` | `http://localhost:9098` | Browser-reachable VISTA-2 URL allowed as the return target after a HOLO identity hand-off. |
 | `FOCUS_API_KEY` | *(empty — disabled)* | Enables the read-only `/api/v1/...` JSON API (see below). Callers send it in an `X-API-Key` header. |
 
 ## Read-only API for external integrations
