@@ -9,6 +9,13 @@
   <a class="btn btn-sm" href="{{ rp }}/presentations/new">+ New Presentation</a>
 </div>
 <form method="get" action="{{ rp }}/presentations" class="filter-bar">
+  <label class="filter-label" for="category">Category</label>
+  <select id="category" name="category">
+    <option value="" {% if category_sel in ('', 'all') %}selected{% endif %}>All presentations</option>
+    {% for value, label in categories.items() %}
+    <option value="{{ value }}" {% if category_sel == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
   <label class="filter-label" for="person">Person</label>
   <select id="person" name="person">
     <option value="" {% if person_sel in ('', 'everyone') %}selected{% endif %}>Everyone</option>
@@ -18,7 +25,8 @@
     {% endfor %}
   </select>
   <button class="btn btn-sm" type="submit">Filter</button>
-  {% if person_sel %}<a class="filter-clear" href="{{ rp }}/presentations">clear</a>{% endif %}
+  <span class="filter-count">{{ presentations|length }} presentation{{ '' if presentations|length == 1 else 's' }}</span>
+  {% if person_sel or category_sel %}<a class="filter-clear" href="{{ rp }}/presentations">clear</a>{% endif %}
 </form>
 <section class="card">
   {% if presentations %}
@@ -41,7 +49,12 @@
   </table>
   </div>
   {% else %}
+  {% if person_sel or category_sel %}
+  <p class="muted">No presentations match these filters.</p>
+  <a class="btn btn-sm ghost" href="{{ rp }}/presentations">Show all presentations</a>
+  {% else %}
   <p class="muted">No presentations found. Create a presentation to get started.</p>
+  {% endif %}
   {% endif %}
 </section>
 {% endblock %}

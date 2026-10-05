@@ -73,11 +73,16 @@ def _form(request, db, user, presentation=None, *, values=None, error="", saved=
 
 
 @router.get("/presentations", response_class=HTMLResponse)
-def list_presentations(request: Request, person: str = "", db: Session = Depends(get_db),
+def list_presentations(request: Request, person: str = "", category: str = "",
+                       db: Session = Depends(get_db),
                        user=Depends(get_current_user)):
     if user is None:
         return _redirect("/login")
     query = db.query(Presentation)
+    if category not in ("", "all"):
+        if category not in PRESENTATION_CATEGORIES:
+            raise HTTPException(status_code=400, detail="Choose a valid presentation category.")
+        query = query.filter(Presentation.category == category)
     if person == "me":
         query = query.filter(Presentation.owner_id == user.id)
     elif person not in ("", "everyone"):
@@ -91,6 +96,7 @@ def list_presentations(request: Request, person: str = "", db: Session = Depends
         {
             "request": request, "user": user, "presentations": presentations,
             "all_users": db.query(User).order_by(User.email).all(), "person_sel": person,
+            "category_sel": category,
             "categories": PRESENTATION_CATEGORIES, "stages": PRESENTATION_STAGES,
             "can_edit_presentation": perm.can_edit_presentation,
         },

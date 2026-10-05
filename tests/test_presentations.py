@@ -245,7 +245,7 @@ def test_person_filters_include_everyone_me_and_any_user(client, db_session, mem
     assert "My launch" in page and "Other spotlight" not in page
     page = client.get(f"/presentations?person={other_member.id}").text
     assert "Other spotlight" in page and "My launch" not in page
-    assert "No presentations found" in client.get("/presentations?person=999").text
+    assert "No presentations match these filters." in client.get("/presentations?person=999").text
     for value in ("bad", "-1", "999999999999999999999999", "0"):
         assert client.get(f"/presentations?person={value}").status_code == 400
 

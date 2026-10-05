@@ -64,6 +64,9 @@ Spotlight**, and **Event** presentations. Each record has a title, an existing
 FOCUS user as owner, a selectable **Collaborate / Develop / Deliver** workflow
 stage, an optional planned delivery date with a clickable calendar picker (or
 manual YYYY-MM-DD entry), and a large editable notes section.
+Filter the Presentations view by **Category** to see all presentations or just
+Customer, Technical Spotlight, or Event records. Combine it with **Person** to
+view a user's presentations within that category; **clear** resets both filters.
 Stages can be changed in either direction; Deliver is a workflow stage, not
 an automatic confirmation that delivery occurred.
 
