@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Presentations · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Presentations</h1>
+    <p class="muted overview-sub">Collaborate, develop, and deliver presentations across the team.</p>
+  </div>
+  <a class="btn btn-sm" href="{{ rp }}/presentations/new">+ New Presentation</a>
+</div>
+<form method="get" action="{{ rp }}/presentations" class="filter-bar">
+  <label class="filter-label" for="person">Person</label>
+  <select id="person" name="person">
+    <option value="" {% if person_sel in ('', 'everyone') %}selected{% endif %}>Everyone</option>
+    <option value="me" {% if person_sel == 'me' %}selected{% endif %}>Just me ({{ user.email }})</option>
+    {% for owner in all_users %}
+    <option value="{{ owner.id }}" {% if person_sel == owner.id|string %}selected{% endif %}>{{ owner.email }}{% if not owner.is_active %} (inactive){% endif %}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-sm" type="submit">Filter</button>
+  {% if person_sel %}<a class="filter-clear" href="{{ rp }}/presentations">clear</a>{% endif %}
+</form>
+<section class="card">
+  {% if presentations %}
+  <div class="presentation-table-scroll" tabindex="0" role="region" aria-label="Presentation records">
+  <table class="tbl">
+    <thead><tr><th>Title</th><th>Owner</th><th>Category</th><th>Stage</th><th>Delivery date</th><th>Last update</th><th></th></tr></thead>
+    <tbody>
+    {% for presentation in presentations %}
+    <tr>
+      <td><a class="record-link" href="{{ rp }}/presentations/{{ presentation.id }}">{{ presentation.title }}</a></td>
+      <td>{{ presentation.owner.email }}</td>
+      <td>{{ categories[presentation.category] }}</td>
+      <td>{{ stages[presentation.stage] }}</td>
+      <td>{{ presentation.delivery_date.isoformat() if presentation.delivery_date else 'Not set' }}</td>
+      <td>{{ presentation.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{% if can_edit_presentation(user, presentation) %}<a class="btn btn-sm ghost" href="{{ rp }}/presentations/{{ presentation.id }}/edit">Edit</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No presentations found. Create a presentation to get started.</p>
+  {% endif %}
+</section>
+{% endblock %}

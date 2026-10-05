@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}FOCUS{% endblock %}</title>
-  <link rel="stylesheet" href="{{ rp }}/assets/style.css">
+  <link rel="stylesheet" href="{{ rp }}/assets/style.css?v=20261005-nav-2">
+  <script src="{{ rp }}/assets/navigation.js?v=20261005-nav" defer></script>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -14,23 +15,41 @@
       <div class="brand">FOC<span>US</span> {% block brand_subtitle %}{% endblock %}</div>
     </div>
     {% if user %}
-    <nav class="nav">
-      <a class="navlink" href="{{ rp }}/">Dashboard{% if attention_count(request) %}<span class="nav-badge" title="Unread messages / action items needing your attention">{{ attention_count(request) }}</span>{% endif %}</a>
-      <a class="navlink" href="{{ rp }}/metrics">Metrics</a>
+    {% set path = request.url.path %}
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" hidden>Menu</button>
+    <nav class="nav" id="primary-nav" aria-label="Main navigation">
+      <a class="navlink" href="{{ rp }}/"{% if path == '/' %} aria-current="page"{% endif %}>Home</a>
+      <a class="navlink" href="{{ rp }}/work"{% if path == '/work' or path.startswith('/tasks') or path.startswith('/action-items') or path.startswith('/users/') %} aria-current="page"{% endif %}>Work{% if attention_count(request) %}<span class="nav-badge" title="Unread messages / action items needing your attention">{{ attention_count(request) }}</span>{% endif %}</a>
+      <a class="navlink" href="{{ rp }}/presentations"{% if path.startswith('/presentations') %} aria-current="page"{% endif %}>Presentations</a>
+      <a class="navlink" href="{{ rp }}/metrics"{% if path == '/metrics' %} aria-current="page"{% endif %}>Metrics</a>
       {% if config.SSO_SHARED_SECRET %}
       <a class="navlink holo-link" href="{{ rp }}/go/holo" target="_blank" rel="noopener"
          title="Open HOLO in a new tab, already signed in">HOLO</a>
       {% endif %}
       {% if user.role in ['admin', 'manager'] %}
-      <a class="navlink" href="{{ rp }}/admin">Admin</a>
-      <a class="navlink" href="{{ rp }}/admin/log">System Log</a>
+      <details class="nav-dropdown">
+        <summary{% if path.startswith('/admin') %} class="is-current"{% endif %}>Manage</summary>
+        <div class="nav-panel">
+          <a href="{{ rp }}/admin"{% if path == '/admin' %} aria-current="page"{% endif %}>Admin</a>
+          <a href="{{ rp }}/admin/log"{% if path == '/admin/log' %} aria-current="page"{% endif %}>System Log</a>
+        </div>
+      </details>
       {% endif %}
-      <span class="who">{{ user.email }} · {{ user.role }}</span>
-      <a class="btn-link" href="{{ rp }}/account/password">Change password</a>
-      <form method="post" action="{{ rp }}/logout" class="logout">
-        <button class="btn-link" type="submit">Log out</button>
-      </form>
+      <details class="nav-dropdown account-menu">
+        <summary{% if path == '/account/password' %} class="is-current"{% endif %}>Account</summary>
+        <div class="nav-panel">
+          <a href="{{ rp }}/account/password"{% if path == '/account/password' %} aria-current="page"{% endif %}>Change password</a>
+          <form method="post" action="{{ rp }}/logout" class="logout">
+            <button type="submit">Log out</button>
+          </form>
+        </div>
+      </details>
     </nav>
+    <div class="signed-in" aria-label="Signed-in user">
+      <span class="signed-in-label">Signed in as</span>
+      <span class="account-email">{{ user.email }}</span>
+      <span class="account-role">{{ user.role }}</span>
+    </div>
     {% endif %}
   </header>
   <main class="container">

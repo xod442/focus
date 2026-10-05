@@ -94,7 +94,7 @@ def test_dashboard_shows_only_my_own_messages(client, db_session, member_user, o
     # member_user messages other_member (about other's task)
     client.post(f"/tasks/{task_for_other.id}/message", data={"body": "Message to other"})
 
-    r = client.get("/")
+    r = client.get("/work")
     assert "Message to member" in r.text   # addressed to member_user (logged in)
     assert "Message to other" not in r.text  # addressed to other_member, not shown here
 
@@ -121,13 +121,13 @@ def test_clear_message_removes_it_and_requires_recipient(client, db_session, mem
 
     client.post("/logout")
     login(client, member_user)
-    r = client.get("/")
+    r = client.get("/work")
     assert "hello" in r.text
 
     client.post(f"/messages/{m.id}/clear")
     assert db_session.get(Message, m.id) is None
 
-    r = client.get("/")
+    r = client.get("/work")
     assert "hello" not in r.text
     assert "No messages right now." in r.text
 
@@ -144,7 +144,7 @@ def test_message_related_link_shown_on_dashboard(client, db_session, member_user
     client.post("/logout")
 
     login(client, member_user)
-    r = client.get("/")
+    r = client.get("/work")
     assert f"/tasks/{task.id}/edit" in r.text
     assert f"Task #{task.id}: Linked task" in r.text
 
@@ -278,7 +278,7 @@ def test_dashboard_shows_reply_button_and_clear_confirmation(client, db_session,
     client.post("/logout")
 
     login(client, member_user)
-    r = client.get("/")
+    r = client.get("/work")
     assert "openReplyModal(this)" in r.text
     assert "onsubmit=\"return confirm(" in r.text
 
@@ -357,7 +357,7 @@ def test_message_keeps_relationship_after_source_task_is_deleted(client, db_sess
     assert message.related_label == f"Task #{task_id}: Will be deleted"
 
     # It still renders correctly (label + link) on the dashboard.
-    r = client.get("/")
+    r = client.get("/work")
     assert f"Task #{task_id}: Will be deleted" in r.text
     assert f"/tasks/{task_id}/edit" in r.text
 

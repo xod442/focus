@@ -196,6 +196,6 @@ def test_dashboard_shows_review_pill(client, db_session, member_user, other_memb
     ).one()
     client.post(f"/action-items/{item.id}/notes", data={"body": "ping"})
 
-    r = client.get("/")
+    r = client.get("/work")
     assert 'class="status-badge status-review"' in r.text
     assert ">review<" in r.text

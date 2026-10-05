@@ -48,7 +48,7 @@ def create_task(
     db.refresh(task)
     audit.log(db, user, "task.create", target_type="task", target_id=task.id,
               target_label=task.title)
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/tasks/{task_id}/edit", response_class=HTMLResponse)
@@ -58,7 +58,7 @@ def edit_task_form(task_id: int, request: Request, db: Session = Depends(get_db)
         return _login()
     task = db.get(Task, task_id)
     if task is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request,
         "task_edit.html",
@@ -84,9 +84,9 @@ def update_task(
         return _login()
     task = db.get(Task, task_id)
     if task is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     if not perm.can_edit_task(user, task):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     # Ownership is never reassignable — tasks stay with whoever created them.
     task.title = title.strip()
@@ -106,7 +106,7 @@ def toggle_task_status(task_id: int, request: Request, db: Session = Depends(get
         return _login()
     task = db.get(Task, task_id)
     if task is None or not perm.can_edit_task(user, task):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     if task.status == STATUS_IN_PROGRESS:
         task.status = STATUS_COMPLETED
@@ -120,7 +120,7 @@ def toggle_task_status(task_id: int, request: Request, db: Session = Depends(get
     audit.log(db, user, "task.status", target_type="task", target_id=task.id,
               target_label=task.title, details=f"status={task.status}")
 
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     return RedirectResponse(referer, status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -131,7 +131,7 @@ def add_task_note(task_id: int, body: str = Form(...), db: Session = Depends(get
         return _login()
     task = db.get(Task, task_id)
     if task is None or not perm.can_edit_task(user, task):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     body = body.strip()
     if body:
         db.add(TaskNote(task_id=task.id, author_id=user.id, body=body))
@@ -155,9 +155,9 @@ def email_task(
     if user is None:
         return _login()
     task = db.get(Task, task_id)
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     if task is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     to = to.strip().lower()
     # Only allow sending to a known, active user's address — never an arbitrary input.
@@ -204,9 +204,9 @@ def message_task(
     if user is None:
         return _login()
     task = db.get(Task, task_id)
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     if task is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     body = body.strip()[:MESSAGE_BODY_MAX_LEN]
     if not body:
@@ -240,9 +240,9 @@ def delete_task(task_id: int, db: Session = Depends(get_db), user=Depends(get_cu
         return _login()
     task = db.get(Task, task_id)
     if task is None or not perm.can_edit_task(user, task):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     audit.log(db, user, "task.delete", target_type="task", target_id=task.id,
               target_label=task.title)
     db.delete(task)
     db.commit()
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)

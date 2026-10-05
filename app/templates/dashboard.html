@@ -1,38 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · FOCUS{% endblock %}
+{% block title %}Work · FOCUS{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <div>
-    <h1>Team Dashboard</h1>
+    <h1>Work</h1>
     <p class="muted overview-sub">Everything open across the team, reviewed together on the weekly call.</p>
   </div>
   <div class="backup-actions">
     <a class="btn btn-sm ghost mine-chip{% if person_sel == 'me' %} active{% endif %}"
-       href="{{ rp }}/?status_filter=open&amp;person=me" title="Just my open tasks &amp; action items">Just mine</a>
+       href="{{ rp }}/work?status_filter=open&amp;person=me" title="Just my open tasks &amp; action items">Just mine</a>
     <a class="btn btn-sm" href="{{ rp }}/tasks/new">+ New Task</a>
     <a class="btn btn-sm ghost" href="{{ rp }}/action-items/new">+ New Action Item</a>
   </div>
 </div>
 
 {% if msg %}<div class="alert {{ 'success' if ok else 'error' }}">{{ msg }}</div>{% endif %}
-
-<section class="card">
-  <h2>Recently completed <span class="muted">— the team's latest wins</span></h2>
-  {% if recent_completed %}
-  <ul class="recent-list">
-    {% for row in recent_completed %}
-    <li class="recent-row">
-      <span class="status-badge status-complete">{{ row.kind }}</span>
-      <span class="recent-label">{{ row.label }}</span>
-      <span class="muted recent-meta">{{ row.who }} · {{ row.completed_at.strftime('%Y-%m-%d') }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="muted">Nothing completed yet.</p>
-  {% endif %}
-</section>
 
 <section class="card">
   <h2>My Messages <span class="muted">— quick pings sent to you; clear once read</span></h2>
@@ -68,7 +51,7 @@
   {% endif %}
 </section>
 
-<form method="get" action="{{ rp }}/" class="filter-bar">
+<form method="get" action="{{ rp }}/work" class="filter-bar">
   <label class="filter-label" for="status_filter">Status</label>
   <select id="status_filter" name="status_filter" onchange="this.form.submit()">
     <option value="open" {% if status_sel == 'open' %}selected{% endif %}>Open (in progress)</option>
@@ -86,7 +69,7 @@
   <noscript><button class="btn btn-sm" type="submit">Filter</button></noscript>
   <span class="filter-count">{{ open_task_count }} open task{{ '' if open_task_count == 1 else 's' }} ·
     {{ open_item_count }} open action item{{ '' if open_item_count == 1 else 's' }}</span>
-  {% if status_sel != 'open' or person_sel %}<a class="filter-clear" href="{{ rp }}/">clear</a>{% endif %}
+  {% if status_sel != 'open' or person_sel %}<a class="filter-clear" href="{{ rp }}/work">clear</a>{% endif %}
   {% if person_sel == 'me' %}
     <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/me/executive?days=30">Executive view</a>
   {% elif person_sel and person_sel.isdigit() %}

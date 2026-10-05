@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Home · FOCUS{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Your focus, in one place</h1>
+    <p class="muted overview-sub">Keep everyday commitments moving and bring your next presentation to life.</p>
+  </div>
+</div>
+<div class="focus-areas">
+  <section class="card focus-area">
+    <p class="eyebrow">Tasks &amp; action items</p>
+    <h2>Work</h2>
+    <p class="muted">Plan your tasks, follow through on assigned action items, and stay connected with the team.</p>
+    <p>{{ my_task_count }} open task{{ '' if my_task_count == 1 else 's' }} &middot; {{ my_item_count }} assigned action item{{ '' if my_item_count == 1 else 's' }}</p>
+    {% if my_message_count %}<p class="hint">{{ my_message_count }} unread message{{ '' if my_message_count == 1 else 's' }} waiting in Work.</p>{% endif %}
+    <div class="backup-actions">
+      <a class="btn" href="{{ rp }}/work">Open Work</a>
+      <a class="btn btn-sm ghost" href="{{ rp }}/work?person=me">Just my work</a>
+    </div>
+  </section>
+  <section class="card focus-area">
+    <p class="eyebrow">Customer &middot; Technical Spotlight &middot; Event</p>
+    <h2>Presentations</h2>
+    <p class="muted">Collaborate on the plan, develop the story, and prepare to deliver. Keep ownership, delivery dates, and notes together.</p>
+    <p>{{ my_presentation_count }} presentation{{ '' if my_presentation_count == 1 else 's' }} owned by you</p>
+    <p class="hint">Collaborate &rarr; Develop &rarr; Deliver</p>
+    <div class="backup-actions">
+      <a class="btn" href="{{ rp }}/presentations">Open Presentations</a>
+      <a class="btn btn-sm ghost" href="{{ rp }}/presentations/new">+ New Presentation</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

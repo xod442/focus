@@ -102,7 +102,7 @@ def test_email_without_mail_config_reports_error(client, db_session, member_user
 
 def test_dashboard_shows_flash_from_email_redirect(client, member_user):
     login(client, member_user)
-    r = client.get("/?ok=1&msg=Email+sent+to+someone%40test.local.")
+    r = client.get("/work?ok=1&msg=Email+sent+to+someone%40test.local.")
     assert r.status_code == 200
     assert "Email sent to someone@test.local." in r.text
     assert 'class="alert success"' in r.text
@@ -111,6 +111,6 @@ def test_dashboard_shows_flash_from_email_redirect(client, member_user):
 def test_dashboard_shows_email_icon_per_row(client, member_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Icon check"})
-    r = client.get("/")
+    r = client.get("/work")
     assert 'data-kind="tasks"' in r.text
     assert "openEmailModal(this)" in r.text

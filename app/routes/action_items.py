@@ -56,7 +56,7 @@ def create_item(
     db.refresh(item)
     audit.log(db, user, "action_item.create", target_type="action_item", target_id=item.id,
               target_label=item.description[:80])
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/action-items/{item_id}/edit", response_class=HTMLResponse)
@@ -66,7 +66,7 @@ def edit_item_form(item_id: int, request: Request, db: Session = Depends(get_db)
         return _login()
     item = db.get(ActionItem, item_id)
     if item is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     # The assignee "reads" a pending review just by opening the item — clears
     # the dashboard's "review" pill back to normal "in progress".
@@ -102,9 +102,9 @@ def update_item(
         return _login()
     item = db.get(ActionItem, item_id)
     if item is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     if not perm.can_edit_action_item(user, item):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     item.description = description.strip()
     if assignee_id.strip():
@@ -125,7 +125,7 @@ def toggle_item_status(item_id: int, request: Request, db: Session = Depends(get
         return _login()
     item = db.get(ActionItem, item_id)
     if item is None or not perm.can_edit_action_item(user, item):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     if item.status == STATUS_IN_PROGRESS:
         item.status = STATUS_COMPLETED
@@ -140,7 +140,7 @@ def toggle_item_status(item_id: int, request: Request, db: Session = Depends(get
     audit.log(db, user, "action_item.status", target_type="action_item", target_id=item.id,
               target_label=item.description[:80], details=f"status={item.status}")
 
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     return RedirectResponse(referer, status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -151,7 +151,7 @@ def add_item_note(item_id: int, body: str = Form(...), db: Session = Depends(get
         return _login()
     item = db.get(ActionItem, item_id)
     if item is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     body = body.strip()
     if body:
         db.add(ActionItemNote(action_item_id=item.id, author_id=user.id, body=body))
@@ -176,9 +176,9 @@ def email_item(
     if user is None:
         return _login()
     item = db.get(ActionItem, item_id)
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     if item is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     to = to.strip().lower()
     # Only allow sending to a known, active user's address — never an arbitrary input.
@@ -227,9 +227,9 @@ def message_item(
     if user is None:
         return _login()
     item = db.get(ActionItem, item_id)
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     if item is None:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     body = body.strip()[:MESSAGE_BODY_MAX_LEN]
     if not body:
@@ -264,9 +264,9 @@ def delete_item(item_id: int, db: Session = Depends(get_db), user=Depends(get_cu
         return _login()
     item = db.get(ActionItem, item_id)
     if item is None or not perm.can_edit_action_item(user, item):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
     audit.log(db, user, "action_item.delete", target_type="action_item", target_id=item.id,
               target_label=item.description[:80])
     db.delete(item)
     db.commit()
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)

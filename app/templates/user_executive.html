@@ -4,7 +4,7 @@
 {% set health_state = 'good' if closure_rate >= 60 and open_backlog <= 3 else 'warn' if closure_rate >= 40 or open_backlog <= 6 else 'danger' %}
 <div class="exec-header">
   <div>
-    <a class="back" href="{{ rp }}/">← back to dashboard</a>
+    <a class="back" href="{{ rp }}/work">← back to Work</a>
     <p class="eyebrow">Executive performance view</p>
     <div class="exec-title-row">
       <h1>{{ target_user.email }}</h1>

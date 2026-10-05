@@ -14,13 +14,26 @@ Replaces "email me what you did last week" with a living dashboard of:
   Stays on the dashboard until marked completed.
 - **Action Items** — something one person needs another person (or
   themselves) to do. Can be assigned to anyone on the team.
+- **Presentations** — customer, technical spotlight, and event presentations
+  tracked from collaboration through development to delivery.
 
-Both have a running, dated/attributed **notes log** (add a comment on the
+Tasks and action items have a running, dated/attributed **notes log** (add a comment on the
 weekly call) and an **in-progress / completed** indicator.
 
-## Dashboard
+## Home and Work
 
-The home page shows two sections — Tasks and Action Items — with every open
+FOCUS opens on a home page (`/`) with separate **Work** and **Presentations**
+areas. Work (`/work`) contains the existing tasks, action items, and messages;
+their data and permissions are unchanged. Existing dashboard bookmarks with
+status/person filters redirect to Work with those filters preserved.
+
+The navigation keeps **Home**, **Work**, **Presentations**, and **Metrics** visible. Managers and admins
+can find **Admin** and **System Log** under **Manage**; **Account** contains
+**Change password** and **Log out**. The signed-in user's email and role remain
+visible in the header, even when menus are closed. On smaller screens, use
+**Menu** to expand the navigation.
+
+The Work page shows two sections — Tasks and Action Items — with every open
 record and its owner's/assignee's email. Filter by status (open / completed /
 all) and by person, so anyone can filter down to just their own items for a
 laser-focused view during the call. Each row has a quick "mark complete /
@@ -44,9 +57,38 @@ address), a subject automatically set from the record's type and number (e.g.
 "Task #12: ..." / "Action Item #5: ..."), and a free-text note field. Sending
 uses the same SMTP forwarder configured in Admin → Mail forwarder.
 
+## Presentations
+
+Use **Presentations** (`/presentations`) to track **Customer**, **Technical
+Spotlight**, and **Event** presentations. Each record has a title, an existing
+FOCUS user as owner, a selectable **Collaborate / Develop / Deliver** workflow
+stage, an optional planned delivery date with a clickable calendar picker (or
+manual YYYY-MM-DD entry), and a large editable notes section.
+Stages can be changed in either direction; Deliver is a workflow stage, not
+an automatic confirmation that delivery occurred.
+
+Every signed-in user can view presentations. Members create presentations for
+themselves and edit their own records. Managers and admins can edit any
+presentation and assign or reassign its owner. **Create presentation / Save
+changes** persists the record, including notes and delivery date; no separate
+notes submission is needed.
+
+Saved presentations also have **Related SharePoint documentation**: add multiple
+named HTTPS links that appear as clickable pills and open in a new tab. The owner
+and managers/admins can add or remove links; everyone can view them. Save any
+presentation edits before adding a link, which is saved immediately. Removing a
+link does not delete its SharePoint document or change document access permissions.
+Links are stored in the same FOCUS database and included in backups.
+
+Presentations use a new table in the **existing FOCUS SQLite database**, created
+automatically on application startup without replacing tasks, action items,
+users, or messages. Backups include presentation records; restoring an older
+backup creates the missing table automatically. Metrics and the read-only
+summary API continue to report Work (tasks and action items).
+
 ## Messages
 
-Every user has their own **My Messages** queue at the top of the dashboard —
+Every user has their own **My Messages** queue at the top of the Work dashboard —
 only messages addressed to them are shown. Each task/action item row has a
 💬 icon (next to ✉) for sending a short, in-app ping (up to 250 characters)
 to that record's owner/assignee — no email involved, and the recipient is
@@ -113,9 +155,9 @@ The admin console (`/admin`, admin/manager only) works like HOLO:
   Copy/paste it or email it directly via the configured SMTP forwarder.
 - **Users** — change role, reset password (temporary password, must change on
   next login), enable/disable, or delete (blocked while the user still owns
-  open tasks/action items — reassign or complete those first, or disable the
-  account instead).
-- **System log** — every state-changing action (logins, task/action item
+  tasks/action items or presentations — reassign presentations first, or
+  disable the account instead).
+- **System log** — every state-changing action (logins, task/action item/presentation
   changes, admin actions), filterable.
 
 ## Database backup & restore

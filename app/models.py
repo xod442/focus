@@ -1,7 +1,7 @@
-"""ORM models: auth + invites, and the Task / Action Item tracker."""
-from datetime import datetime
+"""ORM models: auth + invites, work trackers, and presentations."""
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -17,6 +17,19 @@ STAFF_ROLES = (ROLE_ADMIN, ROLE_MANAGER)
 STATUS_IN_PROGRESS = "in_progress"
 STATUS_COMPLETED = "completed"
 VALID_STATUSES = (STATUS_IN_PROGRESS, STATUS_COMPLETED)
+
+PRESENTATION_CATEGORIES = {
+    "customer": "Customer",
+    "technical_spotlight": "Technical Spotlight",
+    "event": "Event",
+}
+PRESENTATION_STAGES = {
+    "collaborate": "Collaborate",
+    "develop": "Develop",
+    "deliver": "Deliver",
+}
+PRESENTATION_TITLE_MAX_LEN = 300
+PRESENTATION_NOTES_MAX_LEN = 100_000
 
 
 class User(Base):
@@ -81,6 +94,41 @@ class TaskNote(Base):
 
     task: Mapped["Task"] = relationship("Task", back_populates="notes")
     author: Mapped["User | None"] = relationship("User")
+
+
+class Presentation(Base):
+    """A presentation's current planning stage and editable working notes."""
+    __tablename__ = "presentations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(PRESENTATION_TITLE_MAX_LEN))
+    category: Mapped[str] = mapped_column(String, index=True)
+    stage: Mapped[str] = mapped_column(String, default="collaborate", index=True)
+    delivery_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
+
+    documentation_links: Mapped[list["PresentationLink"]] = relationship(
+        "PresentationLink", back_populates="presentation", cascade="all, delete-orphan",
+        order_by="PresentationLink.id",
+    )
+
+
+class PresentationLink(Base):
+    __tablename__ = "presentation_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    presentation_id: Mapped[int] = mapped_column(ForeignKey("presentations.id"), index=True)
+    label: Mapped[str] = mapped_column(String(200))
+    url: Mapped[str] = mapped_column(Text)
+
+    presentation: Mapped["Presentation"] = relationship(
+        "Presentation", back_populates="documentation_links"
+    )
 
 
 class ActionItem(Base):

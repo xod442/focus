@@ -5,7 +5,17 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import config
-from .models import ActionItem, AuditLog, STAFF_ROLES, Task
+from .models import ActionItem, AuditLog, Presentation, STAFF_ROLES, Task
+
+
+def can_edit_presentation(user, presentation: Presentation) -> bool:
+    return user is not None and (
+        user.id == presentation.owner_id or user.role in STAFF_ROLES
+    )
+
+
+def can_assign_presentation(user) -> bool:
+    return user is not None and user.role in STAFF_ROLES
 
 
 def can_edit_task(user, task: Task) -> bool:

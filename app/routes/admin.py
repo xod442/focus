@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from .. import audit, backup, config, notifier
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import ActionItem, Invite, STAFF_ROLES, Task, User, VALID_ROLES, ROLE_MEMBER
+from ..models import ActionItem, Invite, Presentation, STAFF_ROLES, Task, User, VALID_ROLES, ROLE_MEMBER
 from ..security import generate_token, hash_password
 from ..web import templates
 
@@ -170,6 +170,12 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db),
         .filter((ActionItem.requested_by_id == user_id) | (ActionItem.assignee_id == user_id))
         .count()
     )
+    owns_presentations = db.query(Presentation).filter(Presentation.owner_id == user_id).count()
+    if owns_presentations:
+        return RedirectResponse(
+            f"/admin?ok=0&msg={quote(f'{target.email} still owns {owns_presentations} presentation(s) — reassign them first, or disable the account instead.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     if owns_tasks or owns_items:
         return RedirectResponse(
             f"/admin?ok=0&msg={quote(f'{target.email} still owns {owns_tasks} task(s) and {owns_items} action item(s) — reassign or complete them first, or disable the account instead.')}",

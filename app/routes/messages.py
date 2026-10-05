@@ -31,7 +31,7 @@ def clear_message(message_id: int, request: Request, db: Session = Depends(get_d
                   target_label=message.related_label or message.body[:60])
         db.delete(message)
         db.commit()
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     return RedirectResponse(referer, status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -45,12 +45,12 @@ def reply_message(
 ):
     if user is None:
         return _login()
-    referer = request.headers.get("referer", "/")
+    referer = request.headers.get("referer", "/work")
     original = db.get(Message, message_id)
     # Only the recipient of a message may reply to it — that's the only
     # person who legitimately sees it in their queue.
     if original is None or original.recipient_id != user.id:
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/work", status_code=status.HTTP_303_SEE_OTHER)
 
     body = body.strip()[:MESSAGE_BODY_MAX_LEN]
     if not body:

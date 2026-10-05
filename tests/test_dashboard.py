@@ -5,7 +5,7 @@ from .conftest import login
 def test_default_dashboard_shows_open_by_default(client, member_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Open task"})
-    r = client.get("/")
+    r = client.get("/work")
     assert "Open task" in r.text
     assert 'value="open" selected' in r.text or "open" in r.text
 
@@ -17,30 +17,30 @@ def test_status_filter_completed(client, db_session, member_user):
     task = db_session.query(Task).filter(Task.title == "Finish me").one()
     client.post(f"/tasks/{task.id}/status")  # mark complete
 
-    # "Finish me" is deliberately still shown in the "Recently completed" strip
-    # regardless of the status filter, so check the Tasks *table* row link
-    # specifically rather than the whole page.
     row_link = f'href="/tasks/{task.id}/edit">Finish me'
 
-    r = client.get("/?status_filter=open")
+    r = client.get("/work?status_filter=open")
     assert row_link not in r.text
 
-    r = client.get("/?status_filter=completed")
+    r = client.get("/work?status_filter=completed")
     assert row_link in r.text
 
-    r = client.get("/?status_filter=all")
+    r = client.get("/work?status_filter=all")
     assert row_link in r.text
 
 
-def test_recently_completed_shown_regardless_of_status_filter(client, db_session, member_user):
+def test_recently_completed_not_shown_on_dashboard(client, db_session, member_user):
     login(client, member_user)
     client.post("/tasks", data={"title": "Ship the report"})
     from app.models import Task
     task = db_session.query(Task).filter(Task.title == "Ship the report").one()
     client.post(f"/tasks/{task.id}/status")  # mark complete
 
-    r = client.get("/?status_filter=open")
-    assert "Recently completed" in r.text
+    r = client.get("/work?status_filter=open")
+    assert "Recently completed" not in r.text
+    assert "Ship the report" not in r.text
+
+    r = client.get("/work?status_filter=completed")
     assert "Ship the report" in r.text
 
 
@@ -52,7 +52,7 @@ def test_person_filter_me(client, db_session, member_user, other_member):
     login(client, other_member)
     client.post("/tasks", data={"title": "Others task"})
 
-    r = client.get("/?person=me")
+    r = client.get("/work?person=me")
     assert "Others task" in r.text
     assert "Mine only" not in r.text
 

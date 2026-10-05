@@ -6,7 +6,7 @@ def test_member_can_create_task_for_self(client, member_user):
     login(client, member_user)
     r = client.post("/tasks", data={"title": "Ship the report"}, follow_redirects=False)
     assert r.status_code == 303
-    r = client.get("/")
+    r = client.get("/work")
     assert "Ship the report" in r.text
 
 

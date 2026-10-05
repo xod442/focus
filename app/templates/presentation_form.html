@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ presentation.title if presentation else 'New Presentation' }} · FOCUS{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ rp }}/assets/vendor/flatpickr/flatpickr.min.css">
+<link rel="stylesheet" href="{{ rp }}/assets/vendor/flatpickr/flatpickr-dark.css">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ rp }}/presentations">&larr; Presentations</a>
+    <h1>{{ presentation.title if presentation else 'New Presentation' }}</h1>
+  </div>
+  {% if readonly and may_edit %}
+  <a class="btn btn-sm" href="{{ rp }}/presentations/{{ presentation.id }}/edit">Edit presentation</a>
+  {% endif %}
+</div>
+{% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+{% if saved %}<div class="alert success" role="status">Presentation saved.</div>{% endif %}
+<section class="card">
+  {% if can_edit %}
+  <form method="post" action="{{ rp }}/presentations{% if presentation %}/{{ presentation.id }}{% endif %}">
+    <label>Title
+      <input type="text" name="title" value="{{ values.title }}" maxlength="{{ title_max }}" required autofocus>
+    </label>
+    <label>Category
+      <select name="category" required>
+        {% if values.category not in categories %}<option value="{{ values.category }}" selected>Invalid category: {{ values.category }}</option>{% endif %}
+        {% for value, label in categories.items() %}<option value="{{ value }}" {% if values.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Stage
+      <select name="stage" required>
+        {% if values.stage not in stages %}<option value="{{ values.stage }}" selected>Invalid stage: {{ values.stage }}</option>{% endif %}
+        {% for value, label in stages.items() %}<option value="{{ value }}" {% if values.stage == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <span class="hint">Choose any stage; there are no progression gates.</span>
+    </label>
+    <label>Delivery date (optional)
+      <input type="{{ 'text' if error else 'date' }}" name="delivery_date" value="{{ values.delivery_date }}" placeholder="YYYY-MM-DD" class="presentation-date">
+      <span class="hint">Click the field to choose from the calendar, or enter YYYY-MM-DD.</span>
+    </label>
+    <button class="btn btn-sm ghost" id="clear-delivery-date" type="button" hidden>Clear delivery date</button>
+    {% if can_assign %}
+    <label>Owner
+      <select name="owner_id" required>
+        {% if values.owner_id not in owners|map(attribute='id')|map('string')|list %}
+        <option value="{{ values.owner_id }}" selected>Choose a valid active owner ({{ values.owner_id }})</option>
+        {% endif %}
+        {% for owner in owners %}
+        <option value="{{ owner.id }}" {% if values.owner_id == owner.id|string %}selected{% endif %}>{{ owner.email }}{% if not owner.is_active %} (inactive — current owner){% endif %}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">Only staff can assign or reassign presentations to active users.</span>
+    </label>
+    {% else %}
+    <p class="hint">Owned by {{ presentation.owner.email if presentation else user.email }}. Only staff can reassign presentations.</p>
+    {% endif %}
+    <label>Notes
+      <textarea name="notes" rows="14" maxlength="{{ notes_max }}" placeholder="Working notes, ideas, and delivery details">{{ values.notes }}</textarea>
+    </label>
+    <button class="btn" type="submit">{{ 'Save changes' if presentation else 'Create presentation' }}</button>
+  </form>
+  {% else %}
+  <dl>
+    <dt>Owner</dt><dd>{{ presentation.owner.email }}</dd>
+    <dt>Category</dt><dd>{{ categories[presentation.category] }}</dd>
+    <dt>Stage</dt><dd>{{ stages[presentation.stage] }}</dd>
+    <dt>Delivery date</dt><dd>{{ values.delivery_date or 'Not set' }}</dd>
+  </dl>
+  <label>Notes
+    <textarea rows="14" readonly>{{ values.notes }}</textarea>
+  </label>
+  <p class="hint">Everyone can view presentations; only the owner or staff can edit.</p>
+  {% endif %}
+  {% if presentation %}
+  <p class="muted">Created {{ presentation.created_at.strftime('%Y-%m-%d %H:%M') }} · Updated {{ presentation.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  {% endif %}
+</section>
+<section class="card" id="documentation">
+  <h2>Related SharePoint documentation</h2>
+  {% if presentation %}
+    {% if link_error %}<div class="alert error" role="alert">{{ link_error }}</div>{% endif %}
+    {% if presentation.documentation_links %}
+    <ul class="documentation-links">
+      {% for link in presentation.documentation_links %}
+      <li>
+        <a class="documentation-pill" href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+           title="Open {{ link.label }} in a new tab">{{ link.label }} &nearr;</a>
+        {% if can_edit %}
+        <form method="post" action="{{ rp }}/presentations/{{ presentation.id }}/links/{{ link.id }}/remove"
+              onsubmit="return confirm('Remove this documentation link? The document itself will not be deleted.');">
+          <button class="icon-btn" type="submit" aria-label="Remove {{ link.label }} link">&times;</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No documentation links yet.</p>
+    {% endif %}
+    {% if can_edit %}
+    <form method="post" action="{{ rp }}/presentations/{{ presentation.id }}/links">
+      <label>Link name
+        <input name="label" value="{{ link_label }}" required maxlength="200" placeholder="e.g. Slides or collaboration notes">
+      </label>
+      <label>SharePoint documentation URL
+        <input type="url" name="url" value="{{ link_url }}" required maxlength="8192" placeholder="https://your-team.sharepoint.com/...">
+      </label>
+      <p class="hint">Save any presentation changes above first. Add link saves this link immediately. Documents open in a new tab; SharePoint access permissions still apply.</p>
+      <button class="btn btn-sm" type="submit">Add link</button>
+    </form>
+    {% endif %}
+  {% else %}
+  <p class="muted">Create this presentation first, then add named documentation links here.</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ rp }}/assets/vendor/flatpickr/flatpickr.min.js"></script>
+<script>
+  const deliveryDate = document.querySelector(".presentation-date");
+  if (deliveryDate) {
+    const picker = flatpickr(deliveryDate, {
+      dateFormat: "Y-m-d",
+      allowInput: true,
+      allowInvalidPreload: true,
+      disableMobile: true
+    });
+    const clearDate = document.getElementById("clear-delivery-date");
+    clearDate.hidden = false;
+    clearDate.addEventListener("click", () => {
+      picker.clear();
+      deliveryDate.focus();
+    });
+  }
+</script>
+{% endblock %}
