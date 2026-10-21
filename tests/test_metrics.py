@@ -6,7 +6,7 @@ from .conftest import login
 
 def test_metrics_page_loads_with_counts(client, db_session, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Task A"})
+    client.post("/action-items", data={"title": "ActionItem A"})
     client.post("/action-items", data={"description": "Item A", "assignee_id": str(member_user.id)})
 
     r = client.get("/metrics")
@@ -17,9 +17,9 @@ def test_metrics_page_loads_with_counts(client, db_session, member_user):
 
 def test_stale_flag_on_old_untouched_task(client, db_session, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Old task"})
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Old task").one()
+    client.post("/action-items", data={"title": "Old task"})
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Old task").one()
     task.updated_at = datetime.utcnow() - timedelta(weeks=5)
     task.created_at = task.updated_at
     db_session.add(task)
@@ -34,8 +34,8 @@ def test_usage_chart_ranks_most_active_user_first(client, db_session, member_use
     # member_user does several actions (logs in + creates two tasks); other_member
     # only logs in once — member_user should be ranked #1 in the usage chart.
     login(client, member_user)
-    client.post("/tasks", data={"title": "One"})
-    client.post("/tasks", data={"title": "Two"})
+    client.post("/action-items", data={"title": "One"})
+    client.post("/action-items", data={"title": "Two"})
     client.post("/logout")
 
     login(client, other_member)
@@ -58,7 +58,7 @@ def test_usage_chart_ranks_most_active_user_first(client, db_session, member_use
 
 def test_usage_chart_days_filter_excludes_old_activity(client, db_session, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Recent"})
+    client.post("/action-items", data={"title": "Recent"})
 
     from app.models import AuditLog
     # Backdate all this user's audit entries beyond the 30-day default window.

@@ -97,6 +97,13 @@ body {
 }
 
 .container { max-width: 960px; margin: 0 auto; padding: 28px; }
+.table-scroll { overflow-x: auto; }
+.table-scroll .tbl { min-width: 700px; }
+.work-transfer, .work-status { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.work-transfer summary, form > details > summary { cursor: pointer; margin-bottom: 14px; }
+.status-blocked { color: var(--danger); background: var(--danger-bg); }
+.status-not_started { color: var(--muted); background: var(--surface2); }
+.status-in_progress { color: var(--hpe-green-dark); background: var(--success-bg); }
 .focus-areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .focus-area { display: flex; flex-direction: column; }
 .focus-area h2 { font-size: 1.4rem; }

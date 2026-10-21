@@ -12,7 +12,10 @@ from sqlalchemy.orm import Session
 from .. import audit, backup, config, notifier
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import ActionItem, Invite, Presentation, STAFF_ROLES, Task, User, VALID_ROLES, ROLE_MEMBER
+from ..models import (
+    ActionItem, ActionItemNote, Invite, Message, Presentation, STAFF_ROLES, Task,
+    User, VALID_ROLES, ROLE_MEMBER,
+)
 from ..security import generate_token, hash_password
 from ..web import templates
 
@@ -88,6 +91,11 @@ def toggle_user(user_id: int, request: Request, db: Session = Depends(get_db),
         return RedirectResponse(
             f"/admin?ok=0&msg={quote('User not found.')}", status_code=status.HTTP_303_SEE_OTHER
         )
+    if target.is_pending_registration:
+        return _render_admin_home(
+            request, db, user, msg="This user must accept their invitation before being enabled.",
+            ok=False,
+        )
     target.is_active = not target.is_active
     db.add(target)
     db.commit()
@@ -133,6 +141,11 @@ def reset_password(user_id: int, request: Request, db: Session = Depends(get_db)
     target = db.get(User, user_id)
     if target is None:
         return _render_admin_home(request, db, user, msg="User not found.", ok=False)
+    if target.is_pending_registration:
+        return _render_admin_home(
+            request, db, user, msg="This user must accept their invitation before resetting a password.",
+            ok=False,
+        )
     # Issue a temporary password and force a change at next login.
     temp = secrets.token_urlsafe(9)
     target.password_hash = hash_password(temp)
@@ -162,23 +175,26 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db),
         return RedirectResponse(
             f"/admin?ok=0&msg={quote('User not found.')}", status_code=status.HTTP_303_SEE_OTHER
         )
-    # Guard rails: don't orphan tasks/action items tied to this person — the
-    # admin must reassign or complete them first.
+    # Disable accounts with work or communication history rather than orphaning attribution.
     owns_tasks = db.query(Task).filter(Task.owner_id == user_id).count()
     owns_items = (
         db.query(ActionItem)
         .filter((ActionItem.requested_by_id == user_id) | (ActionItem.assignee_id == user_id))
         .count()
     )
+    note_count = db.query(ActionItemNote).filter(ActionItemNote.author_id == user_id).count()
+    message_count = db.query(Message).filter(
+        (Message.sender_id == user_id) | (Message.recipient_id == user_id)
+    ).count()
     owns_presentations = db.query(Presentation).filter(Presentation.owner_id == user_id).count()
     if owns_presentations:
         return RedirectResponse(
             f"/admin?ok=0&msg={quote(f'{target.email} still owns {owns_presentations} presentation(s) — reassign them first, or disable the account instead.')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-    if owns_tasks or owns_items:
+    if owns_tasks or owns_items or note_count or message_count:
         return RedirectResponse(
-            f"/admin?ok=0&msg={quote(f'{target.email} still owns {owns_tasks} task(s) and {owns_items} action item(s) — reassign or complete them first, or disable the account instead.')}",
+            f"/admin?ok=0&msg={quote(f'{target.email} still owns work or has work/message history. Disable the account to preserve history; transfer open action items from Team View.')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
     email = target.email
@@ -226,7 +242,7 @@ def create_invite(
 
 def _invite_email_body(link: str) -> str:
     return (
-        "You've been invited to FOCUS — the team's task and action item tracker.\n\n"
+        "You've been invited to FOCUS — the team's action item and workload tracker.\n\n"
         "Set up your account using this single-use link (it will expire):\n\n"
         f"{link}\n"
     )

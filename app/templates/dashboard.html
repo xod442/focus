@@ -4,18 +4,50 @@
 
 <div class="page-head">
   <div>
-    <h1>Work</h1>
-    <p class="muted overview-sub">Everything open across the team, reviewed together on the weekly call.</p>
+    <h1>{{ 'My Work' if person_sel == 'me' else 'Team Work' }}</h1>
+    <p class="muted overview-sub">One place for assigned work and the commitments you take on yourself.</p>
   </div>
   <div class="backup-actions">
     <a class="btn btn-sm ghost mine-chip{% if person_sel == 'me' %} active{% endif %}"
-       href="{{ rp }}/work?status_filter=open&amp;person=me" title="Just my open tasks &amp; action items">Just mine</a>
-    <a class="btn btn-sm" href="{{ rp }}/tasks/new">+ New Task</a>
-    <a class="btn btn-sm ghost" href="{{ rp }}/action-items/new">+ New Action Item</a>
+       href="{{ rp }}/work?status_filter=open&amp;person=me">My Work</a>
+    <a class="btn btn-sm ghost" href="{{ rp }}/work">Team View</a>
+    <a class="btn btn-sm" href="{{ rp }}/action-items/new">+ New Action Item</a>
   </div>
 </div>
 
 {% if msg %}<div class="alert {{ 'success' if ok else 'error' }}">{{ msg }}</div>{% endif %}
+
+{% if not person_sel %}
+<section class="card">
+  <h2>Team workload</h2>
+  <p class="hint">Active action items by owner, including self-initiated work. Counts show visibility, not equivalent effort.</p>
+  <div class="table-scroll">
+  <table class="tbl">
+    <thead><tr><th>Owner</th><th>Active</th><th>Not started</th><th>In progress</th><th>Blocked</th><th>High priority</th><th>Overdue</th></tr></thead>
+    <tbody>
+    {% for r in workload_rows %}
+    <tr>
+      <td><a class="record-link" href="{{ rp }}/work?person={{ r.owner.id }}">{{ r.owner.email }}</a>{% if not r.owner.is_active %} <span class="pill amber">{{ 'invite pending' if r.owner.is_pending_registration else 'inactive' }}</span>{% endif %}</td>
+      <td><strong>{{ r.total }}</strong></td><td>{{ r.not_started }}</td><td>{{ r.in_progress }}</td>
+      <td>{{ r.blocked }}</td><td>{{ r.high }}</td><td>{{ r.overdue }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if user.role in ['admin', 'manager'] %}
+  <details class="work-transfer" id="work-transfer">
+    <summary>Transfer an owner's open action items</summary>
+    <p class="hint">For turnover or workload balancing. Completed items stay with their owner; history and dates are preserved.</p>
+    <form method="post" action="{{ rp }}/action-items/transfer" onsubmit="return confirm('Transfer all open action items to the selected new owner?');">
+      <label>From<select name="source_id" required><option value="">Select current owner</option>{% for u in all_users %}<option value="{{ u.id }}">{{ u.email }}{% if not u.is_active %} (inactive / invite pending){% endif %}</option>{% endfor %}</select></label>
+      <label>New owner<select name="assignee_id" required><option value="">Select new owner</option>{% for u in assignees %}<option value="{{ u.value }}">{{ u.email }}{% if u.pending %} (invite pending){% endif %}</option>{% endfor %}</select></label>
+      <button class="btn btn-sm" type="submit">Transfer open items</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
 
 <section class="card">
   <h2>My Messages <span class="muted">— quick pings sent to you; clear once read</span></h2>
@@ -54,7 +86,10 @@
 <form method="get" action="{{ rp }}/work" class="filter-bar">
   <label class="filter-label" for="status_filter">Status</label>
   <select id="status_filter" name="status_filter" onchange="this.form.submit()">
-    <option value="open" {% if status_sel == 'open' %}selected{% endif %}>Open (in progress)</option>
+    <option value="open" {% if status_sel == 'open' %}selected{% endif %}>All active</option>
+    <option value="not_started" {% if status_sel == 'not_started' %}selected{% endif %}>Not started</option>
+    <option value="in_progress" {% if status_sel == 'in_progress' %}selected{% endif %}>In progress</option>
+    <option value="blocked" {% if status_sel == 'blocked' %}selected{% endif %}>Blocked</option>
     <option value="completed" {% if status_sel == 'completed' %}selected{% endif %}>Completed</option>
     <option value="all" {% if status_sel == 'all' %}selected{% endif %}>All</option>
   </select>
@@ -67,87 +102,45 @@
     {% endfor %}
   </select>
   <noscript><button class="btn btn-sm" type="submit">Filter</button></noscript>
-  <span class="filter-count">{{ open_task_count }} open task{{ '' if open_task_count == 1 else 's' }} ·
-    {{ open_item_count }} open action item{{ '' if open_item_count == 1 else 's' }}</span>
+  <span class="filter-count">{{ open_item_count }} active action item{{ '' if open_item_count == 1 else 's' }} across the team</span>
   {% if status_sel != 'open' or person_sel %}<a class="filter-clear" href="{{ rp }}/work">clear</a>{% endif %}
   {% if person_sel == 'me' %}
-    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/me/executive?days=30">Executive view</a>
+    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/me/executive?days=30">Progress summary</a>
   {% elif person_sel and person_sel.isdigit() %}
-    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/{{ person_sel }}/executive?days=30">Executive view</a>
+    <a class="btn btn-sm ghost exec-cta" href="{{ rp }}/users/{{ person_sel }}/executive?days=30">Progress summary</a>
   {% endif %}
 </form>
 
 <section class="card">
-  <h2>Tasks <span class="muted">— planned work, stays visible until completed</span></h2>
-  {% if task_rows %}
-  <table class="tbl">
-    <thead><tr><th>Title</th><th>Owner</th><th>Status</th><th>Last update</th><th></th></tr></thead>
-    <tbody>
-    {% for row in task_rows %}
-      {% set t = row.task %}
-      <tr>
-        <td>
-          <a class="record-link" href="{{ rp }}/tasks/{{ t.id }}/edit">{{ t.title }}</a>
-          {% if row.stale %}<span class="pill amber" title="No update in {{ stale_weeks if stale_weeks else 2 }}+ weeks">stale</span>{% endif %}
-        </td>
-        <td>{{ t.owner.email }}</td>
-        <td>
-          {% if t.status == 'completed' %}<span class="status-badge status-complete">completed</span>
-          {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
-        </td>
-        <td>{{ t.updated_at.strftime('%Y-%m-%d') }}</td>
-        <td class="backup-actions">
-          <a class="doc-link" href="{{ rp }}/tasks/{{ t.id }}/edit">edit</a>
-          {% if row.can_edit %}
-          <form method="post" action="{{ rp }}/tasks/{{ t.id }}/status">
-            <button class="btn-link dark" type="submit">
-              {{ 'reopen' if t.status == 'completed' else 'mark complete' }}
-            </button>
-          </form>
-          {% endif %}
-          <button type="button" class="icon-btn" title="Email {{ t.owner.email }} about this task"
-                  onclick="openEmailModal(this)"
-                  data-kind="tasks" data-id="{{ t.id }}" data-to="{{ t.owner.email }}"
-                  data-label="Task #{{ t.id }}: {{ t.title }}">&#9993;</button>
-          <button type="button" class="icon-btn" title="Message {{ t.owner.email }} about this task"
-                  onclick="openMessageModal(this)"
-                  data-kind="tasks" data-id="{{ t.id }}" data-to="{{ t.owner.email }}">&#128172;</button>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No tasks match this filter.</p>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h2>Action Items <span class="muted">— something you need someone else (or yourself) to do</span></h2>
+  <h2>Action Items</h2>
   {% if item_rows %}
+  <div class="table-scroll">
   <table class="tbl">
-    <thead><tr><th>Description</th><th>Requested by</th><th>Assignee</th><th>Status</th><th>Last update</th><th></th></tr></thead>
+    <thead><tr><th>Title / latest update</th><th>Created by</th><th>Owner</th><th>Status</th><th>Priority / due</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in item_rows %}
       {% set i = row.item %}
       <tr>
         <td>
-          <a class="record-link" href="{{ rp }}/action-items/{{ i.id }}/edit">{{ i.description }}</a>
+          <a class="record-link" href="{{ rp }}/action-items/{{ i.id }}/edit">{{ i.display_title }}</a>
+          {% if i.overdue %}<span class="pill amber">overdue</span>{% endif %}
           {% if row.stale %}<span class="pill amber" title="No update in 2+ weeks">stale</span>{% endif %}
+          {% if i.blocked_reason %}<p class="hint">Blocked: {{ i.blocked_reason }}</p>{% endif %}
+          {% if i.notes %}<p class="hint">{{ i.notes[0].body }} &middot; {{ i.notes[0].created_at.strftime('%Y-%m-%d') }}</p>{% endif %}
         </td>
         <td>{{ i.requested_by.email }}</td>
         <td>{{ i.assignee.email }}</td>
         <td>
           {% if i.status == 'completed' %}<span class="status-badge status-complete">completed</span>
-          {% elif i.needs_review %}<span class="status-badge status-review"
-            title="Edited or noted since {{ i.assignee.email }} last looked">review</span>
-          {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
+          {% else %}<span class="status-badge status-{{ i.status }}">{{ i.status.replace('_', ' ') }}</span>{% endif %}
+          {% if i.needs_review and i.status != 'completed' %}<span class="status-badge status-review" title="Changed since the owner last looked">review</span>{% endif %}
         </td>
-        <td>{{ i.updated_at.strftime('%Y-%m-%d') }}</td>
+        <td>{{ i.priority|capitalize }}{% if i.due_date %}<br>{{ i.due_date }}{% endif %}</td>
         <td class="backup-actions">
           <a class="doc-link" href="{{ rp }}/action-items/{{ i.id }}/edit">edit</a>
           {% if row.can_edit %}
           <form method="post" action="{{ rp }}/action-items/{{ i.id }}/status">
+            {% if i.status == 'not_started' %}<button class="btn-link dark" type="submit" name="status_value" value="in_progress">start</button>{% endif %}
             <button class="btn-link dark" type="submit">
               {{ 'reopen' if i.status == 'completed' else 'mark complete' }}
             </button>
@@ -156,7 +149,7 @@
           <button type="button" class="icon-btn" title="Email {{ i.assignee.email }} about this action item"
                   onclick="openEmailModal(this)"
                   data-kind="action-items" data-id="{{ i.id }}" data-to="{{ i.assignee.email }}"
-                  data-label="Action Item #{{ i.id }}: {{ i.description }}">&#9993;</button>
+                  data-label="Action Item #{{ i.id }}: {{ i.display_title }}">&#9993;</button>
           <button type="button" class="icon-btn" title="Message {{ i.assignee.email }} about this action item"
                   onclick="openMessageModal(this)"
                   data-kind="action-items" data-id="{{ i.id }}" data-to="{{ i.assignee.email }}">&#128172;</button>
@@ -165,6 +158,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="muted">No action items match this filter.</p>
   {% endif %}

@@ -10,21 +10,18 @@ Replaces "email me what you did last week" with a living dashboard of:
 > **Design:** see [`DESIGN.md`](DESIGN.md) for the shared token reference and
 > UI process/checklist used across opal, opal-mist, holo, focus, and vista.
 
-- **Tasks** — work a person plans to accomplish over the next week or two.
-  Stays on the dashboard until marked completed.
-- **Action Items** — something one person needs another person (or
-  themselves) to do. Can be assigned to anyone on the team.
+- **Action Items** — a single list of commitments, including self-initiated
+  work and assignments from managers or teammates.
 - **Presentations** — customer, technical spotlight, and event presentations
   tracked from collaboration through development to delivery.
 
-Tasks and action items have a running, dated/attributed **notes log** (add a comment on the
-weekly call) and an **in-progress / completed** indicator.
+Action items have an owner, creator, priority, optional due date, and a dated,
+attributed update log. Statuses are **Not started / In progress / Blocked / Completed**.
 
 ## Home and Work
 
 FOCUS opens on a home page (`/`) with separate **Work** and **Presentations**
-areas. Work (`/work`) contains the existing tasks, action items, and messages;
-their data and permissions are unchanged. Existing dashboard bookmarks with
+areas. Work (`/work`) contains action items and messages. Existing dashboard bookmarks with
 status/person filters redirect to Work with those filters preserved.
 
 The navigation keeps **Home**, **Work**, **Presentations**, and **Metrics** visible. Managers and admins
@@ -33,28 +30,61 @@ can find **Admin** and **System Log** under **Manage**; **Account** contains
 visible in the header, even when menus are closed. On smaller screens, use
 **Menu** to expand the navigation.
 
-The Work page shows two sections — Tasks and Action Items — with every open
-record and its owner's/assignee's email. Filter by status (open / completed /
-all) and by person, so anyone can filter down to just their own items for a
-laser-focused view during the call. Each row has a quick "mark complete /
-reopen" button plus a link to a full edit page (title/description, and the
-notes log). Tasks are a personal to-do list: only the owner can edit,
-add a note, toggle status, or delete a task — everyone else only sees it on
-the dashboard for visibility, with no edit access at all (not even managers
-or admins). Action items can be assigned to anyone (including yourself), and
-managers/admins can edit or reassign those.
+**My Work** (`/work?person=me`) shows only items owned by you, not items you
+requested from somebody else. **Team View** (`/work`) shows each person's active
+item count, broken down by status, plus high-priority and overdue counts. Counts
+are a visibility signal, not a comparison of effort or a performance score.
+Inactive owners with open work remain visible.
 
-Action items also get a **"review" pill**: editing the item or adding a note
-flips it from "in progress" to "review", so the assignee notices something
-changed since they last looked. It flips back to "in progress" automatically
-the next time the assignee opens the item — no separate "mark as read" step.
+Creating an item requires only a **title**; the owner defaults to yourself,
+priority to Normal, and status to Not started. Description and due date are
+optional. Start, complete, or reopen directly from a row. The detail page supports
+all four statuses; marking Blocked requires a short reason. Progress notes are
+optional. Status and ownership changes automatically enter the history.
+Blocked and overdue work sorts ahead of other active work. Filter by owner and
+status to focus the list. Creators, current owners, and managers/admins may edit
+or reassign an item; other team members can view it and contribute notes.
+
+Managers/admins can **transfer all open items** from one owner to another using
+Team View's transfer panel (linked from Admin). Completed items stay put. Transfers
+preserve the creator, dates, notes, and original status, and log old/new owners.
+New assignments and reassignments send an in-app message to the new owner.
+Disable departing users rather than deleting them to preserve attribution.
+
+### Existing TODOs and upgrades
+
+On startup, existing TODOs are migrated once into self-created action items,
+including completed work, original dates, descriptions, and attributed notes.
+Messages about TODOs are relinked to the new action item. Old detail bookmarks
+redirect to the migrated record, and `/tasks/new` redirects to action-item creation.
+Old TODO write endpoints return HTTP 410 so stale forms cannot create a second
+work list. Original task rows are retained for recovery, but excluded from workload
+and reporting. A migration marker prevents deleted migrated items from reappearing.
+Existing action items keep their current status and description; their priority
+defaults to Normal and their due date remains unset.
+
+Before deploying, download a database backup from Admin. Schema additions and
+data migration run automatically against the existing database volume.
+
+Both action-item assignment forms include people with an unexpired, unused
+invitation, labelled **invite pending**. Assigning work reserves an inactive
+account; the invitee cannot sign in (including via SSO) until they accept an
+invitation and set a password. Registration activates the same account, preserving
+its assignments and messages. Expired or revoked invites cannot receive new
+assignments; work already assigned remains attached to that email and can be
+reassigned or claimed after a fresh invitation is accepted. Disabled registered
+accounts are not eligible for new assignments.
+
+Action items also get a separate **"review" pill** when something changes,
+so the assignee notices it without replacing the workflow status.
+It clears automatically the next time the assignee opens the item — no separate "mark as read" step.
 Marking the item complete also clears it.
 
-Each row also has a small ✉ icon — click it to email the record's owner (task)
-or assignee (action item) directly from the dashboard. A modal opens with the
+Each row also has a small ✉ icon — click it to email the owner
+directly from the dashboard. A modal opens with the
 recipient pre-filled (editable, but restricted to a known active user's
 address), a subject automatically set from the record's type and number (e.g.
-"Task #12: ..." / "Action Item #5: ..."), and a free-text note field. Sending
+"Action Item #5: ..."), and a free-text note field. Sending
 uses the same SMTP forwarder configured in Admin → Mail forwarder.
 
 ## Presentations
@@ -87,20 +117,20 @@ Presentations use a new table in the **existing FOCUS SQLite database**, created
 automatically on application startup without replacing tasks, action items,
 users, or messages. Backups include presentation records; restoring an older
 backup creates the missing table automatically. Metrics and the read-only
-summary API continue to report Work (tasks and action items).
+summary API report action items, without double-counting retained legacy TODO rows.
 
 ## Messages
 
 Every user has their own **My Messages** queue at the top of the Work dashboard —
-only messages addressed to them are shown. Each task/action item row has a
+only messages addressed to them are shown. Each action item row has a
 💬 icon (next to ✉) for sending a short, in-app ping (up to 250 characters)
 to that record's owner/assignee — no email involved, and the recipient is
 always locked to that record's owner/assignee (not user-selectable). Each
-message shows the sender, timestamp, and a link back to the task/action item
+message shows the sender, timestamp, and a link back to the action item
 it was about.
 
 Each message has two actions: **↩ Reply** sends a new message straight back
-to whoever sent the original (carrying the same task/action item context),
+to whoever sent the original (carrying the same action item context),
 so a conversation can go back and forth between two people until either side
 clears it. **× Clear** (with a confirmation prompt, so an accidental click
 can't silently delete a message) permanently removes it from just that
@@ -130,9 +160,9 @@ not `localhost`. If `SSO_SHARED_SECRET` is empty, the button is hidden and
 
 `/metrics` gives leadership a one-page view:
 
-- Open vs. completed counts (tasks and action items, separately)
+- Active/completed action item counts, plus blocked and overdue counts
 - **Application usage by user** — a 3D-styled bar chart of audit-log activity
-  (logins, task & action item changes) per person over a selectable window
+  (logins and action item changes) per person over a selectable window
   (7/30/90 days). Bar height and color intensity both scale with activity, so
   the most engaged user visually pops against everyone else — a quick read on
   who is (and isn't) actively using the system.
@@ -140,14 +170,14 @@ not `localhost`. If `SSO_SHARED_SECRET` is empty, the button is hidden and
 - Stale items — open longer than `FOCUS_STALE_WEEKS` (default 2) without an
   update, flagged as likely obstacles
 - Completion trend over the last 8 weeks
-- The oldest open items across both lists
+- The oldest active action items
 
 ## Roles & permissions
 
 | Role      | Can do |
 |-----------|--------|
-| `member`  | Create tasks for themselves only (never reassignable, and only the owner can edit/note/delete/toggle status — visible to others but locked); create action items assigned to anyone. Edit action items they requested or are assigned. |
-| `manager` | Everything a member can, plus edit or reassign **any** action item (team-lead oversight), plus the full admin console (users, invites, backups). Tasks stay locked to their owner even for managers/admins. |
+| `member`  | Create action items for themselves or teammates without approval. Edit/reassign items they created or currently own. View team workloads and add notes. |
+| `manager` | Everything a member can, plus edit or reassign **any** action item, bulk-transfer open work, and use the full admin console (users, invites, backups). |
 | `admin`   | Same access as manager. Intended for whoever owns the deployment. |
 
 ## User management & invitations
@@ -158,9 +188,9 @@ The admin console (`/admin`, admin/manager only) works like HOLO:
   Copy/paste it or email it directly via the configured SMTP forwarder.
 - **Users** — change role, reset password (temporary password, must change on
   next login), enable/disable, or delete (blocked while the user still owns
-  tasks/action items or presentations — reassign presentations first, or
-  disable the account instead).
-- **System log** — every state-changing action (logins, task/action item/presentation
+  action items, retained legacy work, presentations, notes, or messages. Disable departing users
+  to preserve attribution and use Team View to transfer their open work).
+- **System log** — every state-changing action (logins, action item/presentation
   changes, admin actions), filterable.
 
 ## Database backup & restore
@@ -251,7 +281,7 @@ disable it (every route 404s).
 
 | Route | Returns |
 |---|---|
-| `GET /api/v1/summary` | Open/completed task & action item counts, stale counts, per-person workload, the 8-week completion trend, and the oldest open items. |
+| `GET /api/v1/summary` | Active/completed action item counts, blocked/overdue and stale counts, per-person workload (including status and priority breakdowns), the 8-week completion trend, and oldest active items. Legacy task count fields remain present as zero for existing clients. |
 | `GET /api/v1/users` | The user roster (id, email, role, active flag, forced-password-change flag) — never password hashes. |
 | `GET /api/v1/activity?days=7\|30\|90` | Per-user audit-log activity count and most recent login over the window (the same data behind FOCUS's own usage chart). |
 

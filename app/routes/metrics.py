@@ -12,7 +12,7 @@ from .. import config
 from .. import permissions as perm
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import ActionItem, AuditLog, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, User
+from ..models import ActionItem, AuditLog, STATUS_COMPLETED, User
 from ..web import templates
 
 router = APIRouter()
@@ -88,69 +88,53 @@ def metrics(
     if usage_days not in USAGE_DAY_CHOICES:
         usage_days = USAGE_DAYS_DEFAULT
 
-    all_tasks = db.query(Task).all()
     all_items = db.query(ActionItem).all()
     users = {u.id: u for u in db.query(User).all()}
 
-    open_tasks = [t for t in all_tasks if t.status == STATUS_IN_PROGRESS]
-    done_tasks = [t for t in all_tasks if t.status == STATUS_COMPLETED]
-    open_items = [i for i in all_items if i.status == STATUS_IN_PROGRESS]
+    open_items = [i for i in all_items if i.status != STATUS_COMPLETED]
     done_items = [i for i in all_items if i.status == STATUS_COMPLETED]
 
-    # Per-person open workload: tasks by owner, action items by assignee.
-    workload = defaultdict(lambda: {"tasks": 0, "action_items": 0})
-    for t in open_tasks:
-        workload[t.owner_id]["tasks"] += 1
+    workload = defaultdict(int)
     for i in open_items:
-        workload[i.assignee_id]["action_items"] += 1
+        workload[i.assignee_id] += 1
     workload_rows = sorted(
         (
             {
                 "email": users[uid].email if uid in users else "(unknown)",
-                "tasks": v["tasks"],
-                "action_items": v["action_items"],
-                "total": v["tasks"] + v["action_items"],
+                "user_id": uid,
+                "action_items": count,
+                "total": count,
             }
-            for uid, v in workload.items()
+            for uid, count in workload.items()
         ),
         key=lambda r: r["total"],
         reverse=True,
     )
 
     # Stale = open and untouched for longer than the configured window.
-    stale_tasks = [t for t in open_tasks if perm.is_stale(t.updated_at)]
     stale_items = [i for i in open_items if perm.is_stale(i.updated_at)]
 
-    # Oldest open items across both lists — the likely obstacles to discuss.
+    # Oldest active commitments are candidates for follow-up.
     oldest = sorted(
-        [{"kind": "Task", "label": t.title, "owner": users[t.owner_id].email if t.owner_id in users else "?",
-          "created_at": t.created_at, "age_weeks": perm.age_weeks(t.created_at)} for t in open_tasks]
-        + [{"kind": "Action Item", "label": i.description,
+        [{"kind": "Action Item", "label": i.display_title,
             "owner": users[i.assignee_id].email if i.assignee_id in users else "?",
             "created_at": i.created_at, "age_weeks": perm.age_weeks(i.created_at)} for i in open_items],
         key=lambda r: r["created_at"],
     )[:OLDEST_LIMIT]
 
-    # Completion trend: how many tasks + action items were completed each of
-    # the last N weeks (Monday-anchored buckets).
+    # Monday-anchored completion buckets.
     now = datetime.utcnow()
     week_starts = [_week_start(now) - timedelta(weeks=n) for n in range(TREND_WEEKS - 1, -1, -1)]
-    trend = [{"week": ws.strftime("%b %d"), "tasks": 0, "action_items": 0} for ws in week_starts]
+    trend = [{"week": ws.strftime("%b %d"), "action_items": 0} for ws in week_starts]
     bucket_index = {ws: idx for idx, ws in enumerate(week_starts)}
 
-    for t in done_tasks:
-        if t.completed_at is None:
-            continue
-        ws = _week_start(t.completed_at)
-        if ws in bucket_index:
-            trend[bucket_index[ws]]["tasks"] += 1
     for i in done_items:
         if i.completed_at is None:
             continue
         ws = _week_start(i.completed_at)
         if ws in bucket_index:
             trend[bucket_index[ws]]["action_items"] += 1
-    trend_max = max([1] + [r["tasks"] + r["action_items"] for r in trend])
+    trend_max = max([1] + [r["action_items"] for r in trend])
 
     usage_rows = _usage_rows(db, usage_days, user.id)
 
@@ -160,19 +144,18 @@ def metrics(
         {
             "request": request,
             "user": user,
-            "open_task_count": len(open_tasks),
-            "done_task_count": len(done_tasks),
             "open_item_count": len(open_items),
             "done_item_count": len(done_items),
-            "stale_task_count": len(stale_tasks),
             "stale_item_count": len(stale_items),
             "stale_weeks": config.STALE_WEEKS,
             "workload_rows": workload_rows,
             "oldest": oldest,
             "trend": trend,
             "trend_max": trend_max,
-            "total_open": len(open_tasks) + len(open_items),
-            "total_done": len(done_tasks) + len(done_items),
+            "total_open": len(open_items),
+            "total_done": len(done_items),
+            "blocked_count": sum(i.status == "blocked" for i in open_items),
+            "overdue_count": sum(i.overdue for i in open_items),
             "usage_rows": usage_rows,
             "usage_days": usage_days,
             "usage_day_choices": USAGE_DAY_CHOICES,

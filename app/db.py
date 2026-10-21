@@ -28,6 +28,7 @@ def init_db() -> None:
     from . import models  # noqa: F401  (register mappers before create_all)
     Base.metadata.create_all(engine)
     _ensure_columns()
+    _migrate_work()
     seed_default_admin()
     seed_default_manager()
     seed_mail_config()
@@ -56,6 +57,53 @@ def _ensure_columns() -> None:
             conn.execute(
                 text("ALTER TABLE action_items ADD COLUMN needs_review BOOLEAN NOT NULL DEFAULT 0")
             )
+        for name, definition in {
+            "title": "VARCHAR(300) NOT NULL DEFAULT ''",
+            "priority": "VARCHAR NOT NULL DEFAULT 'normal'",
+            "due_date": "DATE",
+            "blocked_reason": "TEXT NOT NULL DEFAULT ''",
+            "legacy_task_id": "INTEGER",
+        }.items():
+            if name not in action_item_cols:
+                conn.execute(text(f"ALTER TABLE action_items ADD COLUMN {name} {definition}"))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_action_items_legacy_task "
+            "ON action_items (legacy_task_id)"
+        ))
+        task_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(tasks)"))}
+        if "migrated" not in task_cols:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN migrated BOOLEAN NOT NULL DEFAULT 0"))
+
+
+def _migrate_work() -> None:
+    """Copy legacy TODOs once, keeping source rows for recovery and old links."""
+    from .models import ActionItem, ActionItemNote, Message, Task
+
+    with SessionLocal() as db:
+        for task in db.query(Task).filter(Task.migrated.is_(False)).all():
+            task.migrated = True
+            if db.query(ActionItem).filter(ActionItem.legacy_task_id == task.id).first():
+                continue
+            item = ActionItem(
+                title=task.title, description=task.description,
+                requested_by_id=task.owner_id, assignee_id=task.owner_id,
+                status=task.status, created_at=task.created_at, updated_at=task.updated_at,
+                completed_at=task.completed_at, legacy_task_id=task.id,
+            )
+            db.add(item)
+            db.flush()
+            for note in task.notes:
+                db.add(ActionItemNote(
+                    action_item_id=item.id, author_id=note.author_id,
+                    body=note.body, created_at=note.created_at,
+                ))
+            for message in db.query(Message).filter(
+                Message.related_kind == "task", Message.related_id == task.id
+            ):
+                message.related_kind = "action_item"
+                message.related_id = item.id
+                message.related_label = f"Action Item #{item.id}: {task.title}"
+        db.commit()
 
 
 def seed_default_admin() -> None:

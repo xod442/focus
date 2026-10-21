@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import ActionItem, Message, Presentation, STATUS_IN_PROGRESS, Task
+from ..models import ActionItem, Message, Presentation, STATUS_COMPLETED
 from ..web import templates
 
 router = APIRouter()
@@ -26,11 +26,8 @@ def home(request: Request, db: Session = Depends(get_db), user=Depends(get_curre
         {
             "request": request,
             "user": user,
-            "my_task_count": db.query(Task).filter(
-                Task.owner_id == user.id, Task.status == STATUS_IN_PROGRESS
-            ).count(),
             "my_item_count": db.query(ActionItem).filter(
-                ActionItem.assignee_id == user.id, ActionItem.status == STATUS_IN_PROGRESS
+                ActionItem.assignee_id == user.id, ActionItem.status != STATUS_COMPLETED
             ).count(),
             "my_message_count": db.query(Message).filter(Message.recipient_id == user.id).count(),
             "my_presentation_count": db.query(Presentation).filter(

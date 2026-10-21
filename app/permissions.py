@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import config
-from .models import ActionItem, AuditLog, Presentation, STAFF_ROLES, Task
+from .models import ActionItem, AuditLog, Presentation, STAFF_ROLES
 
 
 def can_edit_presentation(user, presentation: Presentation) -> bool:
@@ -16,15 +16,6 @@ def can_edit_presentation(user, presentation: Presentation) -> bool:
 
 def can_assign_presentation(user) -> bool:
     return user is not None and user.role in STAFF_ROLES
-
-
-def can_edit_task(user, task: Task) -> bool:
-    """Tasks are a personal to-do list — only the owner may edit, note, or
-    delete it, regardless of role. Everyone else can still see it on the
-    dashboard for visibility, but can't touch it."""
-    if user is None:
-        return False
-    return user.id == task.owner_id
 
 
 def can_edit_action_item(user, item: ActionItem) -> bool:

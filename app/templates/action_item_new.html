@@ -9,18 +9,23 @@
 </div>
 <section class="card">
   <form method="post" action="{{ rp }}/action-items">
-    <label>What needs to happen?
-      <textarea name="description" rows="3" required autofocus
-                placeholder="e.g. Send the updated pricing sheet to the team"></textarea>
+    <label>Title
+      <input name="title" maxlength="300" required autofocus placeholder="What needs to happen?">
     </label>
+    <details>
+      <summary>Optional details</summary>
+      <label>Priority<select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
+      <label>Due date<input type="date" name="due_date"></label>
+      <label>Description<textarea name="description" rows="3"></textarea></label>
+    </details>
     <label>Assign to
       <select name="assignee_id">
-        {% for u in all_users %}
-        <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.email }}{% if u.id == user.id %} (me){% endif %}</option>
+        {% for u in assignees %}
+        <option value="{{ u.value }}" {% if u.user_id == user.id %}selected{% endif %}>{{ u.email }}{% if u.user_id == user.id %} (me){% endif %}{% if u.pending %} (invite pending){% endif %}</option>
         {% endfor %}
       </select>
     </label>
-    <p class="hint">Can be assigned to anyone, including yourself.</p>
+    <p class="hint">Can be assigned to anyone, including yourself or someone with a pending invitation. Their work will be waiting when they register.</p>
     <button class="btn" type="submit">Create action item</button>
   </form>
 </section>

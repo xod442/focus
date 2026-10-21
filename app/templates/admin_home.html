@@ -115,6 +115,7 @@
 
 <section class="card">
   <h2>Users</h2>
+  <p class="hint">For department turnover, disable the account to preserve history, then <a class="doc-link" href="{{ rp }}/work#work-transfer">transfer its open action items in Team View</a>.</p>
   <table class="tbl">
     <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead>
     <tbody>
@@ -131,19 +132,24 @@
           </form>
         </td>
         <td>
-          {% if u.is_active %}<span class="status-badge status-complete">active</span>
+          {% if u.is_pending_registration %}<span class="status-badge status-review">invite pending</span>
+          {% elif u.is_active %}<span class="status-badge status-complete">active</span>
           {% else %}<span class="status-badge status-blocked">disabled</span>{% endif %}
         </td>
         <td>{{ u.created_at.strftime('%Y-%m-%d') }}</td>
         <td>
+          {% if not u.is_pending_registration %}
           <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/reset-password"
                 onsubmit="return confirm('Reset password for {{ u.email }}? They get a temporary password and must change it at next login.');">
             <button class="btn-link dark" type="submit">reset password</button>
           </form>
+          {% endif %}
           {% if u.id != user.id %}
+          {% if not u.is_pending_registration %}
           <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/toggle">
             <button class="btn-link dark" type="submit">{{ 'disable' if u.is_active else 'enable' }}</button>
           </form>
+          {% endif %}
           <form method="post" action="{{ rp }}/admin/users/{{ u.id }}/delete"
                 onsubmit="return confirm('Permanently delete {{ u.email }}? This cannot be undone.');">
             <button class="btn-link dark" type="submit">delete</button>

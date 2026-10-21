@@ -6,12 +6,12 @@ from .conftest import configure_mail, login
 def test_email_task_sends_to_owner(client, db_session, member_user, fake_smtp):
     configure_mail(db_session)
     login(client, member_user)
-    client.post("/tasks", data={"title": "Ship the report"})
+    client.post("/action-items", data={"title": "Ship the report"})
 
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Ship the report").one()
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Ship the report").one()
 
-    r = client.post(f"/tasks/{task.id}/email", data={
+    r = client.post(f"/action-items/{task.id}/email", data={
         "to": member_user.email, "note": "Please prioritize this",
     }, follow_redirects=False)
     assert r.status_code == 303
@@ -20,7 +20,7 @@ def test_email_task_sends_to_owner(client, db_session, member_user, fake_smtp):
     assert len(fake_smtp.sent) == 1
     sent = fake_smtp.sent[0]
     assert sent["To"] == member_user.email
-    assert f"Task #{task.id}" in sent["Subject"]
+    assert f"Action Item #{task.id}" in sent["Subject"]
     body = sent.get_content()
     assert "Please prioritize this" in body
 
@@ -54,12 +54,12 @@ def test_email_action_item_sends_to_assignee(client, db_session, member_user, ot
 def test_email_rejects_unknown_recipient(client, db_session, member_user, fake_smtp):
     configure_mail(db_session)
     login(client, member_user)
-    client.post("/tasks", data={"title": "Solo task"})
+    client.post("/action-items", data={"title": "Solo task"})
 
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Solo task").one()
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Solo task").one()
 
-    r = client.post(f"/tasks/{task.id}/email", data={
+    r = client.post(f"/action-items/{task.id}/email", data={
         "to": "not-a-real-user@test.local", "note": "hi",
     }, follow_redirects=False)
     assert r.status_code == 303
@@ -75,11 +75,11 @@ def test_email_rejects_disabled_recipient(client, db_session, member_user, other
     db_session.commit()
 
     login(client, member_user)
-    client.post("/tasks", data={"title": "Another task"})
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Another task").one()
+    client.post("/action-items", data={"title": "Another task"})
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Another task").one()
 
-    r = client.post(f"/tasks/{task.id}/email", data={
+    r = client.post(f"/action-items/{task.id}/email", data={
         "to": other_member.email, "note": "hi",
     }, follow_redirects=False)
     assert "ok=0" in r.headers["location"]
@@ -89,11 +89,11 @@ def test_email_rejects_disabled_recipient(client, db_session, member_user, other
 def test_email_without_mail_config_reports_error(client, db_session, member_user, fake_smtp):
     # No configure_mail() call -> host is empty, so notifier.send() fails cleanly.
     login(client, member_user)
-    client.post("/tasks", data={"title": "No relay configured"})
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "No relay configured").one()
+    client.post("/action-items", data={"title": "No relay configured"})
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "No relay configured").one()
 
-    r = client.post(f"/tasks/{task.id}/email", data={
+    r = client.post(f"/action-items/{task.id}/email", data={
         "to": member_user.email, "note": "hi",
     }, follow_redirects=False)
     assert "ok=0" in r.headers["location"]
@@ -110,7 +110,7 @@ def test_dashboard_shows_flash_from_email_redirect(client, member_user):
 
 def test_dashboard_shows_email_icon_per_row(client, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Icon check"})
+    client.post("/action-items", data={"title": "Icon check"})
     r = client.get("/work")
-    assert 'data-kind="tasks"' in r.text
+    assert 'data-kind="action-items"' in r.text
     assert "openEmailModal(this)" in r.text

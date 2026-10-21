@@ -12,11 +12,16 @@ ROLE_MEMBER = "member"
 VALID_ROLES = (ROLE_ADMIN, ROLE_MANAGER, ROLE_MEMBER)
 # Admin-tool access (console, invites, backups, user management).
 STAFF_ROLES = (ROLE_ADMIN, ROLE_MANAGER)
+PENDING_INVITE_PASSWORD_HASH = "!invite-pending"
 
-# Shared status values for both Tasks and Action Items.
+# The first two values also describe archived TODOs.
 STATUS_IN_PROGRESS = "in_progress"
 STATUS_COMPLETED = "completed"
 VALID_STATUSES = (STATUS_IN_PROGRESS, STATUS_COMPLETED)
+STATUS_NOT_STARTED = "not_started"
+STATUS_BLOCKED = "blocked"
+ACTION_STATUSES = (STATUS_NOT_STARTED, STATUS_IN_PROGRESS, STATUS_BLOCKED, STATUS_COMPLETED)
+ACTION_PRIORITIES = ("low", "normal", "high")
 
 PRESENTATION_CATEGORIES = {
     "customer": "Customer",
@@ -43,6 +48,10 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    @property
+    def is_pending_registration(self) -> bool:
+        return self.password_hash == PENDING_INVITE_PASSWORD_HASH
+
 
 class Invite(Base):
     __tablename__ = "invites"
@@ -59,8 +68,7 @@ class Invite(Base):
 
 
 class Task(Base):
-    """Work a person plans to accomplish over the next week or two. Stays on
-    the dashboard, visible to the whole team, until marked completed."""
+    """Archived TODO source rows retained after action-item migration."""
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -71,6 +79,7 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    migrated: Mapped[bool] = mapped_column(Boolean, default=False)
 
     owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
     notes: Mapped[list["TaskNote"]] = relationship(
@@ -140,7 +149,12 @@ class ActionItem(Base):
     requested_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     description: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String, default=STATUS_IN_PROGRESS, index=True)
+    title: Mapped[str] = mapped_column(String(300), default="")
+    priority: Mapped[str] = mapped_column(String, default="normal")
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    blocked_reason: Mapped[str] = mapped_column(Text, default="")
+    legacy_task_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
+    status: Mapped[str] = mapped_column(String, default=STATUS_NOT_STARTED, index=True)
     # Set whenever the item is edited or a note is added; cleared when the
     # assignee (the "owner" actually doing the work) next views it. Drives the
     # dashboard's "review" pill so they notice something changed since they
@@ -158,6 +172,14 @@ class ActionItem(Base):
         cascade="all, delete-orphan",
         order_by="ActionItemNote.created_at.desc()",
     )
+
+    @property
+    def display_title(self) -> str:
+        return self.title or self.description[:300]
+
+    @property
+    def overdue(self) -> bool:
+        return self.status != STATUS_COMPLETED and self.due_date is not None and self.due_date < date.today()
 
 
 class ActionItemNote(Base):

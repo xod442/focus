@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from .. import config
 from .. import permissions as perm
 from ..db import get_db
-from ..models import ActionItem, AuditLog, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task, User
+from ..models import ActionItem, AuditLog, STATUS_COMPLETED, STATUS_IN_PROGRESS, User
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
 
@@ -46,18 +46,13 @@ def _week_start(dt: datetime) -> datetime:
 def summary(db: Session = Depends(get_db)):
     """The same figures shown on FOCUS's own /metrics page, in JSON. Meant for
     a periodic pull, not per-request computation."""
-    all_tasks = db.query(Task).all()
     all_items = db.query(ActionItem).all()
     users = {u.id: u for u in db.query(User).all()}
 
-    open_tasks = [t for t in all_tasks if t.status == STATUS_IN_PROGRESS]
-    done_tasks = [t for t in all_tasks if t.status == STATUS_COMPLETED]
-    open_items = [i for i in all_items if i.status == STATUS_IN_PROGRESS]
+    open_items = [i for i in all_items if i.status != STATUS_COMPLETED]
     done_items = [i for i in all_items if i.status == STATUS_COMPLETED]
 
     workload = defaultdict(lambda: {"tasks": 0, "action_items": 0})
-    for t in open_tasks:
-        workload[t.owner_id]["tasks"] += 1
     for i in open_items:
         workload[i.assignee_id]["action_items"] += 1
     workload_rows = sorted(
@@ -67,6 +62,11 @@ def summary(db: Session = Depends(get_db)):
                 "tasks": v["tasks"],
                 "action_items": v["action_items"],
                 "total": v["tasks"] + v["action_items"],
+                "not_started": sum(i.assignee_id == uid and i.status == "not_started" for i in open_items),
+                "in_progress": sum(i.assignee_id == uid and i.status == STATUS_IN_PROGRESS for i in open_items),
+                "blocked": sum(i.assignee_id == uid and i.status == "blocked" for i in open_items),
+                "high_priority": sum(i.assignee_id == uid and i.priority == "high" for i in open_items),
+                "overdue": sum(i.assignee_id == uid and i.overdue for i in open_items),
             }
             for uid, v in workload.items()
         ),
@@ -74,15 +74,10 @@ def summary(db: Session = Depends(get_db)):
         reverse=True,
     )
 
-    stale_tasks = [t for t in open_tasks if perm.is_stale(t.updated_at)]
     stale_items = [i for i in open_items if perm.is_stale(i.updated_at)]
 
     oldest = sorted(
-        [{"kind": "task", "label": t.title,
-          "owner": users[t.owner_id].email if t.owner_id in users else "?",
-          "created_at": t.created_at.isoformat() + "Z",
-          "age_weeks": round(perm.age_weeks(t.created_at), 1)} for t in open_tasks]
-        + [{"kind": "action_item", "label": i.description,
+        [{"kind": "action_item", "label": i.display_title,
             "owner": users[i.assignee_id].email if i.assignee_id in users else "?",
             "created_at": i.created_at.isoformat() + "Z",
             "age_weeks": round(perm.age_weeks(i.created_at), 1)} for i in open_items],
@@ -94,12 +89,6 @@ def summary(db: Session = Depends(get_db)):
     trend = [{"week": ws.strftime("%Y-%m-%d"), "tasks": 0, "action_items": 0} for ws in week_starts]
     bucket_index = {ws: idx for idx, ws in enumerate(week_starts)}
 
-    for t in done_tasks:
-        if t.completed_at is None:
-            continue
-        ws = _week_start(t.completed_at)
-        if ws in bucket_index:
-            trend[bucket_index[ws]]["tasks"] += 1
     for i in done_items:
         if i.completed_at is None:
             continue
@@ -109,18 +98,20 @@ def summary(db: Session = Depends(get_db)):
 
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
-        "open_tasks": len(open_tasks),
-        "done_tasks": len(done_tasks),
+        "open_tasks": 0,
+        "done_tasks": 0,
         "open_action_items": len(open_items),
         "done_action_items": len(done_items),
-        "stale_tasks": len(stale_tasks),
+        "stale_tasks": 0,
         "stale_action_items": len(stale_items),
         "stale_weeks": config.STALE_WEEKS,
         "workload": workload_rows,
         "oldest_open": oldest,
         "completion_trend": trend,
-        "total_open": len(open_tasks) + len(open_items),
-        "total_done": len(done_tasks) + len(done_items),
+        "total_open": len(open_items),
+        "total_done": len(done_items),
+        "blocked_action_items": sum(i.status == "blocked" for i in open_items),
+        "overdue_action_items": sum(i.overdue for i in open_items),
         "total_users": len(users),
     }
 

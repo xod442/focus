@@ -1,169 +1,58 @@
 {% extends "base.html" %}
-{% block title %}Executive View · {{ target_user.email }}{% endblock %}
+{% block title %}Workload · {{ target_user.email }}{% endblock %}
 {% block content %}
-{% set health_state = 'good' if closure_rate >= 60 and open_backlog <= 3 else 'warn' if closure_rate >= 40 or open_backlog <= 6 else 'danger' %}
-<div class="exec-header">
+<div class="page-head">
   <div>
-    <a class="back" href="{{ rp }}/work">← back to Work</a>
-    <p class="eyebrow">Executive performance view</p>
-    <div class="exec-title-row">
-      <h1>{{ target_user.email }}</h1>
-      <span class="health-pill {{ health_state }}">{{ 'Healthy' if health_state == 'good' else 'Watch' if health_state == 'warn' else 'At risk' }}</span>
-    </div>
+    <a class="back" href="{{ rp }}/work?person={{ target_user.id }}">&larr; View action items</a>
+    <h1>{{ target_user.email }}</h1>
+    <p class="muted">Workload and progress, including self-initiated commitments.</p>
   </div>
-  <div class="exec-header-right">
-    <form method="get" action="{{ rp }}/users/{{ target_user.id }}/executive" class="inline-form exec-range-form">
-      <label for="days">Window</label>
-      <select id="days" name="days" onchange="this.form.submit()">
-        <option value="7" {% if days == 7 %}selected{% endif %}>7 days</option>
-        <option value="30" {% if days == 30 %}selected{% endif %}>30 days</option>
-        <option value="90" {% if days == 90 %}selected{% endif %}>90 days</option>
-      </select>
-    </form>
-    <form method="get" class="inline-form exec-user-picker">
-      <label for="user_select">User</label>
-      <select id="user_select" onchange="if (this.value) window.location = '{{ rp }}/users/' + this.value + '/executive?days={{ days }}';">
-        <option value="">Select a user</option>
-        {% for u in all_users %}
-        <option value="{{ u.id }}" {% if u.id == target_user.id %}selected{% endif %}>{{ u.email }}</option>
-        {% endfor %}
-      </select>
-    </form>
-  </div>
+  <form method="get" class="inline-form">
+    <label>Window<select name="days" onchange="this.form.submit()">
+      {% for d in [7, 30, 90] %}<option value="{{ d }}" {% if days == d %}selected{% endif %}>Last {{ d }} days</option>{% endfor %}
+    </select></label>
+    <noscript><button class="btn btn-sm">Apply</button></noscript>
+  </form>
 </div>
-
-<div class="exec-kpis">
-  <div class="metric-tile {{ 'good' if closure_rate >= 60 else 'warn' if closure_rate >= 40 else 'danger' }}">
-    <div class="metric-label">Tasks opened</div>
-    <div class="metric-value">{{ tasks_opened }}</div>
-    <div class="metric-foot">In the last {{ days }} days</div>
-  </div>
-  <div class="metric-tile {{ 'good' if tasks_closed >= tasks_opened else 'warn' if tasks_closed >= 1 and tasks_opened > tasks_closed else 'danger' }}">
-    <div class="metric-label">Tasks closed</div>
-    <div class="metric-value">{{ tasks_closed }}</div>
-    <div class="metric-foot">Completed in period</div>
-  </div>
-  <div class="metric-tile {{ 'good' if open_backlog <= 3 else 'warn' if open_backlog <= 6 else 'danger' }}">
-    <div class="metric-label">Open backlog</div>
-    <div class="metric-value">{{ open_backlog }}</div>
-    <div class="metric-foot">Currently in progress</div>
-  </div>
-  <div class="metric-tile {{ 'good' if action_items_open <= 1 else 'warn' if action_items_open <= 3 else 'danger' }}">
-    <div class="metric-label">Action items</div>
-    <div class="metric-value">{{ action_items_total }}</div>
-    <div class="metric-foot">Assigned to this user</div>
-  </div>
-  <div class="metric-tile {{ 'good' if internal_messages <= 5 else 'warn' if internal_messages <= 12 else 'danger' }}">
-    <div class="metric-label">Internal messages</div>
-    <div class="metric-value">{{ internal_messages }}</div>
-    <div class="metric-foot">Sent in period</div>
-  </div>
-  <div class="metric-tile {{ 'good' if external_emails <= 3 else 'warn' if external_emails <= 8 else 'danger' }}">
-    <div class="metric-label">External emails</div>
-    <div class="metric-value">{{ external_emails }}</div>
-    <div class="metric-foot">Logged for this user</div>
-  </div>
-</div>
-
-<div class="exec-grid">
-  <section class="card exec-section">
-    <h2>Execution health</h2>
-    <div class="legend-row" aria-label="Health status legend">
-      <span class="legend-chip good"><i class="legend-swatch"></i>Healthy</span>
-      <span class="legend-chip warn"><i class="legend-swatch"></i>Watch</span>
-      <span class="legend-chip danger"><i class="legend-swatch"></i>At risk</span>
-    </div>
-    <div class="health-grid">
-      <div class="mini-card {{ 'good' if closure_rate >= 60 else 'warn' if closure_rate >= 40 else 'danger' }}">
-        <span class="mini-label">Closure rate</span>
-        <strong>{{ closure_rate }}%</strong>
-      </div>
-      <div class="mini-card {{ 'good' if overdue_count == 0 else 'warn' if overdue_count <= 2 else 'danger' }}">
-        <span class="mini-label">Overdue</span>
-        <strong>{{ overdue_count }}</strong>
-      </div>
-      <div class="mini-card {{ 'good' if action_items_open <= 1 else 'warn' if action_items_open <= 3 else 'danger' }}">
-        <span class="mini-label">Open action items</span>
-        <strong>{{ action_items_open }}</strong>
-      </div>
-      <div class="mini-card {{ 'good' if work_total <= 4 else 'warn' if work_total <= 8 else 'danger' }}">
-        <span class="mini-label">Workload signal</span>
-        <strong>{{ work_total }}</strong>
-      </div>
-    </div>
-  </section>
-
-  <section class="card exec-section">
-    <h2>Manager note</h2>
-    {% if tasks_opened == 0 and tasks_closed == 0 and internal_messages == 0 and external_emails == 0 and action_items_total == 0 %}
-      <p class="exec-summary danger">No tracked activity in this period. This user may not be using FOCUS consistently; manager follow-up is recommended.</p>
-    {% elif closure_rate >= 60 %}
-      <p class="exec-summary positive">This user is converting work into completed output at a strong rate and is keeping the queue manageable.</p>
-    {% elif closure_rate >= 40 %}
-      <p class="exec-summary warn">This user is active and moving work, but the workload is beginning to outpace completion.</p>
-    {% else %}
-      <p class="exec-summary danger">This profile is carrying a heavy workload and would benefit from attention to backlog and action-item follow-through.</p>
-    {% endif %}
-  </section>
-</div>
-
 <section class="card">
-  <h2>Activity trend</h2>
-  <div class="chart-legend">
-    <span><i class="legend-dot opened"></i> Opened</span>
-    <span><i class="legend-dot closed"></i> Closed</span>
+  <h2>Action item snapshot</h2>
+  <div class="grid2">
+    <div><p class="muted">Created in period</p><strong>{{ tasks_opened }}</strong></div>
+    <div><p class="muted">Completed in period</p><strong>{{ tasks_closed }}</strong></div>
+    <div><p class="muted">Currently active</p><strong>{{ open_backlog }}</strong></div>
+    <div><p class="muted">Overdue</p><strong>{{ overdue_count }}</strong></div>
   </div>
-  <svg class="trend-svg" viewBox="0 0 680 180" role="img" aria-label="Tasks opened and closed over time">
-    <g>
-      <line x1="24" y1="18" x2="24" y2="154" class="grid-line" />
-      <line x1="24" y1="154" x2="668" y2="154" class="grid-line" />
-      {% for row in trend_days %}
-      <line x1="{{ row.x }}" y1="18" x2="{{ row.x }}" y2="154" class="grid-line subtle" />
-      {% endfor %}
-    </g>
+  <p class="hint">Counts show tracked work, not equivalent effort or a performance rating. Period totals use the current owner.</p>
+</section>
+<section class="card">
+  <h2>Communication in the last {{ days }} days</h2>
+  <p>{{ internal_messages }} internal messages &middot; {{ external_emails }} email events</p>
+</section>
+<section class="card">
+  <h2>Action item activity trend</h2>
+  <div class="chart-legend"><span>Created</span><span>Completed</span></div>
+  <svg class="trend-svg" viewBox="0 0 680 180" role="img" aria-label="Action items created and completed over time">
+    <line x1="24" y1="154" x2="668" y2="154" class="grid-line" />
     <polyline points="{{ opened_points }}" class="chart-line opened"></polyline>
     <polyline points="{{ closed_points }}" class="chart-line closed"></polyline>
     {% for row in trend_days %}
-      <circle cx="{{ row.x }}" cy="{{ row.opened_y }}" r="3" class="dot opened"></circle>
-      <circle cx="{{ row.x }}" cy="{{ row.closed_y }}" r="3" class="dot closed"></circle>
-    {% endfor %}
-    {% for row in trend_days %}
-      {% if loop.index % 5 == 0 or loop.last %}
-        <text x="{{ row.x }}" y="170" text-anchor="middle" class="chart-label">{{ row.label }}</text>
-      {% endif %}
+      {% if loop.index % 5 == 0 or loop.last %}<text x="{{ row.x }}" y="170" text-anchor="middle" class="chart-label">{{ row.label }}</text>{% endif %}
     {% endfor %}
   </svg>
 </section>
-
 <section class="card">
   <h2>Recent activity</h2>
-  <table class="tbl exec-table">
-    <thead>
-      <tr>
-        <th>When</th>
-        <th>Type</th>
-        <th>Summary</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
+  <div class="table-scroll">
+    <table class="tbl">
+      <thead><tr><th>When</th><th>Type</th><th>Summary</th><th>Status</th></tr></thead>
+      <tbody>
       {% for row in recent_activity %}
-      <tr>
-        <td>{{ row.ts.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ row.kind }}</td>
-        <td>{{ row.label }}</td>
-        <td>
-          {% if row.status == 'completed' %}<span class="status-badge status-complete">completed</span>
-          {% elif row.status == 'in_progress' %}<span class="status-badge status-in-progress">in progress</span>
-          {% else %}<span class="status-badge status-review">{{ row.status }}</span>{% endif %}
-        </td>
-      </tr>
+        <tr><td>{{ row.ts.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ row.kind }}</td><td>{{ row.label }}</td><td>{{ row.status.replace('_', ' ') }}</td></tr>
       {% else %}
-      <tr>
-        <td colspan="4" class="muted">No activity yet in this window.</td>
-      </tr>
+        <tr><td colspan="4" class="muted">No activity yet.</td></tr>
       {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endblock %}

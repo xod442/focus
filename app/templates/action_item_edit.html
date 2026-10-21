@@ -4,23 +4,28 @@
 <div class="page-head">
   <div>
     <a class="back" href="{{ rp }}/work">&larr; Work</a>
-    <h1>Action Item</h1>
+    <h1>{{ item.display_title }}</h1>
+    <p class="hint">Created {{ item.created_at.strftime('%Y-%m-%d') }} by {{ item.requested_by.email }} &middot; Updated {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}{% if item.completed_at %} &middot; Completed {{ item.completed_at.strftime('%Y-%m-%d') }}{% endif %}</p>
   </div>
   {% if item.status == 'completed' %}<span class="status-badge status-complete">completed</span>
-  {% elif item.needs_review %}<span class="status-badge status-review">review</span>
-  {% else %}<span class="status-badge status-in-progress">in progress</span>{% endif %}
+  {% else %}<span class="status-badge status-{{ item.status }}">{{ item.status.replace('_', ' ') }}</span>{% endif %}
 </div>
 
 <section class="card">
   {% if can_edit %}
   <form method="post" action="{{ rp }}/action-items/{{ item.id }}">
+    <label>Title<input name="title" value="{{ item.display_title }}" maxlength="300" required></label>
     <label>Description
-      <textarea name="description" rows="3" required>{{ item.description }}</textarea>
+      <textarea name="description" rows="3">{{ item.description }}</textarea>
     </label>
+    <div class="grid2">
+      <label>Priority<select name="priority">{% for p in ['low', 'normal', 'high'] %}<option value="{{ p }}" {% if item.priority == p %}selected{% endif %}>{{ p|capitalize }}</option>{% endfor %}</select></label>
+      <label>Due date<input type="date" name="due_date" value="{{ item.due_date or '' }}"></label>
+    </div>
     <label>Assigned to
       <select name="assignee_id">
-        {% for u in all_users %}
-        <option value="{{ u.id }}" {% if u.id == item.assignee_id %}selected{% endif %}>{{ u.email }}</option>
+        {% for u in assignees %}
+        <option value="{{ u.value }}" {% if u.user_id == item.assignee_id %}selected{% endif %}{% if u.disabled %} disabled{% endif %}>{{ u.email }}{% if u.pending %} (invite pending){% elif u.disabled %} (inactive){% endif %}</option>
         {% endfor %}
       </select>
     </label>
@@ -28,6 +33,13 @@
       <input type="text" value="{{ item.requested_by.email }}" disabled>
     </label>
     <button class="btn" type="submit">Save changes</button>
+  </form>
+  <form method="post" action="{{ rp }}/action-items/{{ item.id }}/status" class="work-status">
+    <label>Status<select name="status_value" id="item-status" onchange="document.getElementById('blocked-reason').required = this.value === 'blocked';">
+      {% for s in ['not_started', 'in_progress', 'blocked', 'completed'] %}<option value="{{ s }}" {% if item.status == s %}selected{% endif %}>{{ s.replace('_', ' ')|capitalize }}</option>{% endfor %}
+    </select></label>
+    <label>Blocked reason <span class="hint">(only required when blocked)</span><input name="blocked_reason" id="blocked-reason" value="{{ item.blocked_reason }}" {% if item.status == 'blocked' %}required{% endif %}></label>
+    <button class="btn btn-sm" type="submit">Update status</button>
   </form>
   <div class="backup-actions" style="margin-top:14px;">
     <form method="post" action="{{ rp }}/action-items/{{ item.id }}/status">
@@ -46,12 +58,14 @@
     Only the requester, the assignee, a manager, or an admin can edit this item.
   </p>
   <p>{{ item.description }}</p>
+  <p>Priority: {{ item.priority }} &middot; Due: {{ item.due_date or 'No deadline' }}</p>
+  {% if item.blocked_reason %}<p>Blocked: {{ item.blocked_reason }}</p>{% endif %}
   {% endif %}
 </section>
 
 <section class="card">
-  <h2>Notes</h2>
-  <p class="hint">A running log — add a comment each week's team call.</p>
+  <h2>Updates &amp; history</h2>
+  <p class="hint">Add a short update when useful. Status and ownership changes are recorded automatically.</p>
   <form method="post" action="{{ rp }}/action-items/{{ item.id }}/notes" class="inline-form">
     <input type="text" name="body" placeholder="Add a note..." required style="flex:1 1 auto;">
     <button class="btn btn-sm" type="submit">Add</button>

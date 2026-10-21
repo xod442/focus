@@ -4,7 +4,7 @@ from .conftest import login
 
 def test_default_dashboard_shows_open_by_default(client, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Open task"})
+    client.post("/action-items", data={"title": "Open task"})
     r = client.get("/work")
     assert "Open task" in r.text
     assert 'value="open" selected' in r.text or "open" in r.text
@@ -12,12 +12,12 @@ def test_default_dashboard_shows_open_by_default(client, member_user):
 
 def test_status_filter_completed(client, db_session, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Finish me"})
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Finish me").one()
-    client.post(f"/tasks/{task.id}/status")  # mark complete
+    client.post("/action-items", data={"title": "Finish me"})
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Finish me").one()
+    client.post(f"/action-items/{task.id}/status")  # mark complete
 
-    row_link = f'href="/tasks/{task.id}/edit">Finish me'
+    row_link = f'href="/action-items/{task.id}/edit">Finish me'
 
     r = client.get("/work?status_filter=open")
     assert row_link not in r.text
@@ -31,10 +31,10 @@ def test_status_filter_completed(client, db_session, member_user):
 
 def test_recently_completed_not_shown_on_dashboard(client, db_session, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Ship the report"})
-    from app.models import Task
-    task = db_session.query(Task).filter(Task.title == "Ship the report").one()
-    client.post(f"/tasks/{task.id}/status")  # mark complete
+    client.post("/action-items", data={"title": "Ship the report"})
+    from app.models import ActionItem
+    task = db_session.query(ActionItem).filter(ActionItem.title == "Ship the report").one()
+    client.post(f"/action-items/{task.id}/status")  # mark complete
 
     r = client.get("/work?status_filter=open")
     assert "Recently completed" not in r.text
@@ -46,11 +46,11 @@ def test_recently_completed_not_shown_on_dashboard(client, db_session, member_us
 
 def test_person_filter_me(client, db_session, member_user, other_member):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Mine only"})
+    client.post("/action-items", data={"title": "Mine only"})
     client.post("/logout")
 
     login(client, other_member)
-    client.post("/tasks", data={"title": "Others task"})
+    client.post("/action-items", data={"title": "Others task"})
 
     r = client.get("/work?person=me")
     assert "Others task" in r.text
@@ -59,9 +59,9 @@ def test_person_filter_me(client, db_session, member_user, other_member):
 
 def test_executive_view_for_me(client, member_user):
     login(client, member_user)
-    client.post("/tasks", data={"title": "Executive task"})
+    client.post("/action-items", data={"title": "Executive task"})
 
     r = client.get("/users/me/executive?days=30")
     assert r.status_code == 200
-    assert "Executive performance view" in r.text
+    assert "Workload and progress" in r.text
     assert "Executive task" in r.text

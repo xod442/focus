@@ -67,11 +67,11 @@ def test_toggle_action_item_status(client, db_session, member_user):
         "description": "Toggle this item",
         "assignee_id": str(member_user.id),
     })
-    from app.models import ActionItem, STATUS_COMPLETED, STATUS_IN_PROGRESS
+    from app.models import ActionItem, STATUS_COMPLETED, STATUS_NOT_STARTED
     item = db_session.query(ActionItem).filter(
         ActionItem.description == "Toggle this item"
     ).one()
-    assert item.status == STATUS_IN_PROGRESS
+    assert item.status == STATUS_NOT_STARTED
 
     client.post(f"/action-items/{item.id}/status")
     db_session.refresh(item)
@@ -87,7 +87,7 @@ def test_edit_by_non_assignee_flags_needs_review(client, db_session, member_user
     item = db_session.query(ActionItem).filter(
         ActionItem.description == "Needs a look"
     ).one()
-    assert item.needs_review is False
+    assert item.needs_review is True  # new assignments now notify their owner
 
     # member_user (the requester, not the assignee) edits it.
     client.post(f"/action-items/{item.id}", data={

@@ -131,14 +131,15 @@ def register(
 
     if len(password) < MIN_PASSWORD_LEN:
         return _reject(f"Password must be at least {MIN_PASSWORD_LEN} characters")
-    if db.query(User).filter(User.email == invite.email).first():
+    user = db.query(User).filter(User.email == invite.email).first()
+    if user is not None and not user.is_pending_registration:
         return _reject("An account for this email already exists")
 
-    user = User(
-        email=invite.email,
-        password_hash=hash_password(password),
-        role=invite.role,
-    )
+    if user is None:
+        user = User(email=invite.email)
+    user.password_hash = hash_password(password)
+    user.role = invite.role
+    user.is_active = True
     invite.used_at = datetime.utcnow()
     db.add(user)
     db.commit()

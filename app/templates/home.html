@@ -9,14 +9,15 @@
 </div>
 <div class="focus-areas">
   <section class="card focus-area">
-    <p class="eyebrow">Tasks &amp; action items</p>
-    <h2>Work</h2>
-    <p class="muted">Plan your tasks, follow through on assigned action items, and stay connected with the team.</p>
-    <p>{{ my_task_count }} open task{{ '' if my_task_count == 1 else 's' }} &middot; {{ my_item_count }} assigned action item{{ '' if my_item_count == 1 else 's' }}</p>
+    <p class="eyebrow">Action items &amp; team visibility</p>
+    <h2>My Work</h2>
+    <p class="muted">Track assignments and the commitments you take on yourself. Keep updates quick and make your workload visible.</p>
+    <p>{{ my_item_count }} active action item{{ '' if my_item_count == 1 else 's' }} owned by you</p>
     {% if my_message_count %}<p class="hint">{{ my_message_count }} unread message{{ '' if my_message_count == 1 else 's' }} waiting in Work.</p>{% endif %}
     <div class="backup-actions">
-      <a class="btn" href="{{ rp }}/work">Open Work</a>
-      <a class="btn btn-sm ghost" href="{{ rp }}/work?person=me">Just my work</a>
+      <a class="btn" href="{{ rp }}/work?person=me">My Work</a>
+      <a class="btn btn-sm ghost" href="{{ rp }}/work">Team View</a>
+      <a class="btn btn-sm ghost" href="{{ rp }}/action-items/new">+ Action Item</a>
     </div>
   </section>
   <section class="card focus-area">

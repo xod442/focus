@@ -1,6 +1,5 @@
-"""Work dashboard: two sections (Tasks, Action Items), filterable by status
-and by person so anyone can get laser-focused on just their own items."""
-from datetime import datetime, timedelta
+"""Action-item workload and progress, filterable by owner and workflow status."""
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,10 +8,11 @@ from starlette import status as http_status
 
 from .. import permissions as perm
 from ..db import get_db
+from ..assignees import assignee_options
 from ..deps import get_current_user
 from ..models import (
-    ActionItem, AuditLog, MESSAGE_BODY_MAX_LEN, Message, STATUS_COMPLETED, STATUS_IN_PROGRESS, Task,
-    User,
+    ActionItem, AuditLog, MESSAGE_BODY_MAX_LEN, Message, STATUS_COMPLETED,
+    User, ACTION_STATUSES,
 )
 from ..web import templates
 
@@ -46,45 +46,45 @@ def dashboard(
     elif person.isdigit():
         person_id = int(person)
 
-    tasks_q = db.query(Task)
     items_q = db.query(ActionItem)
 
     if status_filter == "open":
-        tasks_q = tasks_q.filter(Task.status == STATUS_IN_PROGRESS)
-        items_q = items_q.filter(ActionItem.status == STATUS_IN_PROGRESS)
-    elif status_filter == "completed":
-        tasks_q = tasks_q.filter(Task.status == STATUS_COMPLETED)
-        items_q = items_q.filter(ActionItem.status == STATUS_COMPLETED)
+        items_q = items_q.filter(ActionItem.status != STATUS_COMPLETED)
+    elif status_filter in ACTION_STATUSES:
+        items_q = items_q.filter(ActionItem.status == status_filter)
     # status_filter == "all" → no filter
 
     if person_id is not None:
-        tasks_q = tasks_q.filter(Task.owner_id == person_id)
-        items_q = items_q.filter(
-            (ActionItem.assignee_id == person_id) | (ActionItem.requested_by_id == person_id)
-        )
+        items_q = items_q.filter(ActionItem.assignee_id == person_id)
 
-    tasks = tasks_q.order_by(Task.status, Task.updated_at.desc()).all()
-    items = items_q.order_by(ActionItem.status, ActionItem.updated_at.desc()).all()
-
-    task_rows = [
-        {
-            "task": t,
-            "can_edit": perm.can_edit_task(user, t),
-            "stale": t.status == STATUS_IN_PROGRESS and perm.is_stale(t.updated_at),
-        }
-        for t in tasks
-    ]
+    items = items_q.order_by(ActionItem.updated_at.desc()).all()
+    items.sort(key=lambda i: (
+        i.status == STATUS_COMPLETED, not (i.status == "blocked"), not i.overdue,
+        {"high": 0, "normal": 1, "low": 2}[i.priority],
+    ))
     item_rows = [
         {
             "item": i,
             "can_edit": perm.can_edit_action_item(user, i),
-            "stale": i.status == STATUS_IN_PROGRESS and perm.is_stale(i.updated_at),
+            "stale": i.status != STATUS_COMPLETED and perm.is_stale(i.updated_at),
         }
         for i in items
     ]
 
-    open_task_count = db.query(Task).filter(Task.status == STATUS_IN_PROGRESS).count()
-    open_item_count = db.query(ActionItem).filter(ActionItem.status == STATUS_IN_PROGRESS).count()
+    open_items = db.query(ActionItem).filter(ActionItem.status != STATUS_COMPLETED).all()
+    workload_rows = []
+    for owner in all_users:
+        owned = [i for i in open_items if i.assignee_id == owner.id]
+        if not owner.is_active and not owned:
+            continue
+        workload_rows.append({
+            "owner": owner, "total": len(owned),
+            "not_started": sum(i.status == "not_started" for i in owned),
+            "in_progress": sum(i.status == "in_progress" for i in owned),
+            "blocked": sum(i.status == "blocked" for i in owned),
+            "high": sum(i.priority == "high" for i in owned),
+            "overdue": sum(i.overdue for i in owned),
+        })
 
     # Each user's own message queue — only messages addressed to them.
     my_messages = (
@@ -101,12 +101,12 @@ def dashboard(
             "request": request,
             "user": user,
             "all_users": all_users,
-            "task_rows": task_rows,
             "item_rows": item_rows,
             "status_sel": status_filter,
             "person_sel": person,
-            "open_task_count": open_task_count,
-            "open_item_count": open_item_count,
+            "open_item_count": len(open_items),
+            "workload_rows": workload_rows,
+            "assignees": assignee_options(db),
             "my_messages": my_messages,
             "message_max_len": MESSAGE_BODY_MAX_LEN,
             "ok": bool(ok),
@@ -140,29 +140,23 @@ def user_executive(
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     tasks_opened = (
-        db.query(Task)
-        .filter(Task.owner_id == target_user.id, Task.created_at >= cutoff)
+        db.query(ActionItem)
+        .filter(ActionItem.assignee_id == target_user.id, ActionItem.created_at >= cutoff)
         .count()
     )
     tasks_closed = (
-        db.query(Task)
+        db.query(ActionItem)
         .filter(
-            Task.owner_id == target_user.id,
-            Task.status == STATUS_COMPLETED,
-            Task.completed_at.isnot(None),
-            Task.completed_at >= cutoff,
+            ActionItem.assignee_id == target_user.id,
+            ActionItem.status == STATUS_COMPLETED,
+            ActionItem.completed_at.isnot(None),
+            ActionItem.completed_at >= cutoff,
         )
         .count()
     )
     open_backlog = (
-        db.query(Task)
-        .filter(Task.owner_id == target_user.id, Task.status == STATUS_IN_PROGRESS)
-        .count()
-    )
-    action_items_total = db.query(ActionItem).filter(ActionItem.assignee_id == target_user.id).count()
-    action_items_open = (
         db.query(ActionItem)
-        .filter(ActionItem.assignee_id == target_user.id, ActionItem.status == STATUS_IN_PROGRESS)
+        .filter(ActionItem.assignee_id == target_user.id, ActionItem.status != STATUS_COMPLETED)
         .count()
     )
     internal_messages = (
@@ -181,31 +175,12 @@ def user_executive(
     )
     overdue_count = (
         db.query(ActionItem)
-        .filter(ActionItem.assignee_id == target_user.id, ActionItem.status == STATUS_IN_PROGRESS)
+        .filter(ActionItem.assignee_id == target_user.id, ActionItem.status != STATUS_COMPLETED,
+                ActionItem.due_date < date.today())
         .count()
     )
-    closure_rate = 0.0
-    work_total = max(tasks_opened + tasks_closed, 1)
-    if tasks_opened + tasks_closed:
-        closure_rate = round((tasks_closed / (tasks_opened + tasks_closed)) * 100, 1)
-
     recent_activity = []
     for task in (
-        db.query(Task)
-        .filter(Task.owner_id == target_user.id)
-        .order_by(Task.updated_at.desc())
-        .limit(6)
-        .all()
-    ):
-        recent_activity.append(
-            {
-                "ts": task.updated_at,
-                "kind": "Task",
-                "label": task.title,
-                "status": task.status,
-            }
-        )
-    for item in (
         db.query(ActionItem)
         .filter(ActionItem.assignee_id == target_user.id)
         .order_by(ActionItem.updated_at.desc())
@@ -214,10 +189,10 @@ def user_executive(
     ):
         recent_activity.append(
             {
-                "ts": item.updated_at,
+                "ts": task.updated_at,
                 "kind": "Action Item",
-                "label": item.description[:80],
-                "status": item.status,
+                "label": task.display_title,
+                "status": task.status,
             }
         )
     for msg in (
@@ -260,22 +235,22 @@ def user_executive(
         day_start = datetime.combine(current_day, datetime.min.time())
         day_end = day_start + timedelta(days=1)
         opened = (
-            db.query(Task)
+            db.query(ActionItem)
             .filter(
-                Task.owner_id == target_user.id,
-                Task.created_at >= day_start,
-                Task.created_at < day_end,
+                ActionItem.assignee_id == target_user.id,
+                ActionItem.created_at >= day_start,
+                ActionItem.created_at < day_end,
             )
             .count()
         )
         closed = (
-            db.query(Task)
+            db.query(ActionItem)
             .filter(
-                Task.owner_id == target_user.id,
-                Task.status == STATUS_COMPLETED,
-                Task.completed_at.isnot(None),
-                Task.completed_at >= day_start,
-                Task.completed_at < day_end,
+                ActionItem.assignee_id == target_user.id,
+                ActionItem.status == STATUS_COMPLETED,
+                ActionItem.completed_at.isnot(None),
+                ActionItem.completed_at >= day_start,
+                ActionItem.completed_at < day_end,
             )
             .count()
         )
@@ -353,13 +328,9 @@ def user_executive(
             "tasks_opened": tasks_opened,
             "tasks_closed": tasks_closed,
             "open_backlog": open_backlog,
-            "action_items_total": action_items_total,
-            "action_items_open": action_items_open,
             "internal_messages": internal_messages,
             "external_emails": external_emails,
-            "closure_rate": closure_rate,
             "overdue_count": overdue_count,
-            "work_total": work_total,
             "recent_activity": recent_activity,
             "trend_days": trend_days,
             "opened_points": opened_points,

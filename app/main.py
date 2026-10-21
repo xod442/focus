@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import backup, config
 from .db import SessionLocal, init_db
 from .deps import get_current_user
-from .models import ActionItem, Message, STATUS_IN_PROGRESS, User, STAFF_ROLES
+from .models import ActionItem, Message, STATUS_COMPLETED, User, STAFF_ROLES
 from .routes import (
     account, action_items, admin, api, auth, dashboard, home, logs, messages, metrics,
     presentations, sso, tasks,
@@ -65,7 +65,7 @@ async def _inject_attention_badge(request, call_next):
                 db.query(ActionItem)
                 .filter(
                     ActionItem.assignee_id == user_id,
-                    ActionItem.status == STATUS_IN_PROGRESS,
+                    ActionItem.status != STATUS_COMPLETED,
                     ActionItem.needs_review.is_(True),
                 )
                 .count()
